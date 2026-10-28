@@ -267,18 +267,31 @@
   .card.cslot{margin-top:0}
   .cslot .cs-h{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
   .cslot .pn[data-open]{cursor:pointer} .cslot .pn[data-open]:hover{color:var(--accent)}
+  .cpair{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:20px;align-items:start}
+  @media (max-width:900px){.cpair{grid-template-columns:1fr}}
+  .crad{border-left:1px solid var(--soft);padding-left:16px}
   .cverd{margin:0;padding-left:18px;font-size:13.5px;line-height:1.6;color:#374151} .cverd li{margin:2px 0}
   .ctable{display:flex;flex-direction:column}
   .cr{display:grid;grid-template-columns:90px minmax(0,1fr) 150px minmax(0,1fr) 90px;gap:10px;align-items:center;padding:4px 0;font-size:13px;border-bottom:1px solid var(--soft)}
   .cr.ch2{font-weight:700;border-bottom:1px solid var(--line)}
   .cr .cl{text-align:center;color:var(--muted);font-size:12px}
-  .cr .cv{font-variant-numeric:tabular-nums;font-weight:600} .cr .cv.r{text-align:right} .cr .cv.w{color:var(--accent)}
+  .cr .cv{font-variant-numeric:tabular-nums;font-weight:600} .cr .cv.r{text-align:right} .cr .cv.wa{color:#4f46e5} .cr .cv.wb{color:#ea580c}
   .cb{height:9px;background:var(--soft);border-radius:4px;overflow:hidden;display:flex}
   .cb.l{justify-content:flex-end}
-  .cb i{display:block;height:100%;background:#c7cbd4;border-radius:4px} .cb i.w{background:var(--accent)}
+  .cb i{display:block;height:100%;background:#c7cbd4;border-radius:4px} .cb i.wa{background:#4f46e5} .cb i.wb{background:#f97316}
   .cg{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;margin:12px 0 2px;text-align:center}
   @media (max-width:640px){.cr{grid-template-columns:64px minmax(0,1fr) 92px minmax(0,1fr) 64px;gap:6px;font-size:12px}}
   h4.bpos{font-size:13px;margin:16px 0 2px;display:flex;align-items:center;gap:8px}
+  .bud{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  @media (max-width:700px){.bud{grid-template-columns:1fr}}
+  .bud-i{font-size:12px;color:var(--muted);margin:0 0 8px}
+  .bud-r{border-top:1px solid var(--soft);padding:9px 0}
+  .bud-h{display:flex;align-items:center;gap:6px;font-size:12.5px;margin-bottom:5px;flex-wrap:wrap}
+  .bud-b{display:grid;grid-template-columns:40px 1fr 52px;gap:8px;align-items:center;font-size:12px;margin:3px 0}
+  .bud-b .t{background:var(--soft);border-radius:3px;height:9px;overflow:hidden} .bud-b .t i{display:block;height:100%;border-radius:3px}
+  .bud-b .num{text-align:right;font-weight:600}
+  .bud-p{font-size:12px;color:var(--muted);margin-top:5px}
+  .bud-p .a{color:var(--ink);font-weight:600;cursor:pointer} .bud-p .a:hover{color:var(--accent);text-decoration:underline}
   .mmap{display:grid;grid-template-columns:44px repeat(4,minmax(0,1fr));gap:6px;align-items:stretch}
   .mmap .mh{font-size:11px;text-align:center;padding-bottom:2px}
   .mmap .mr{display:flex;align-items:center}
@@ -366,7 +379,7 @@
       <div><h1>RIVIQ Scout</h1><p class="ds" id="dsInfo">Se încarcă datele…</p></div>
     </div>
     <div class="nav" role="tablist">
-      <button data-page="players" class="on">Jucători</button><button data-page="news">Noutăți</button><button data-page="targets">Ținte</button><button data-page="badges">Badge-uri</button><button data-page="stacks">Stack-uri</button><button data-page="rare">Rare Upgrade</button><button data-page="cmp">Comparație</button>
+      <button data-page="players" class="on">Jucători</button><button data-page="targets">Ținte</button><button data-page="badges">Badge-uri</button><button data-page="stacks">Stack-uri</button><button data-page="rare">Rare Upgrade</button><button data-page="cmp">Comparație</button><button data-page="news">Noutăți</button>
       <span class="sep"></span>
       <button data-page="tool">Setări</button><button data-page="guide">Ghid badge-uri</button><button data-page="price">Ghid preț</button>
     </div>
@@ -1252,29 +1265,37 @@ function tcard(p,i){
 }
 function badgeOk(p,f){return !f||(f==='*'?!!p.badge:f==='+'?p.bplus:f==='-'?!p.badge:f.startsWith('fam:')?p.fam===f.slice(4):p.bbase===f);}
 const BADGE_OPTS=()=>[['','Toate'],['*','Doar cu badge'],['+','Doar plus și Prime'],['fam:all','Complet'],['fam:aa','Sigur'],['fam:dec','Exploziv'],['-','Fără badge'],...BADGES];
-// harta pietei: intr-o singura competitie, pe pozitie si Tier, cat costa un punct de Q Clasa
+// unde iti duci bugetul: intr-o singura competitie, ce pozitie iti da cel mai mult nivel pe euro (slotul Extra)
+// si unde e cel mai ieftin saltul de Tier (Strong -> Elite, Elite -> Best in Class)
 function marketMap(){
   const comp=S.comp.size===1?[...S.comp][0]:(COMPS.includes(S.mapComp)?S.mapComp:COMPS[0]);
-  const TT=['Best in Class','Elite','Strong','Good'];
-  const pool=P.filter(p=>p.comp===comp&&p.lim&&p.qc>0&&TT.includes(p.tier)&&p.status!=='Nu joaca');
-  const cells={};let best=null;
-  for(const pos of POSORD)for(const t of TT){
-    const xs=pool.filter(p=>p.pos===pos&&p.tier===t);
-    if(xs.length<3){cells[pos+t]=null;continue;}
-    const ppt=median(xs.map(p=>p.lim/p.qc)),pick=[...xs].filter(p=>p.fl).sort((a,b)=>b.ts-a.ts)[0]||null;
-    cells[pos+t]={n:xs.length,med:median(xs.map(p=>p.lim)),ppt,pick};
-  }
-  const colMin={};TT.forEach(t=>{const v=POSORD.map(pos=>cells[pos+t]).filter(Boolean);colMin[t]=v.length>1?Math.min(...v.map(c=>c.ppt)):null;});
-  TT.slice(0,3).forEach(t=>POSORD.forEach(pos=>{const c=cells[pos+t];if(c&&c.ppt===colMin[t]&&(!best||c.ppt<best.c.ppt))best={pos,t,c};}));
-  const PL={Goalkeeper:'Portarii',Defender:'Fundașii',Midfielder:'Mijlocașii',Forward:'Atacanții'};
-  const head=best?`În ${esc(comp)}, cel mai ieftin pe punct acum: <b>${PL[best.pos]} ${best.t}</b>, ${eur(best.c.ppt)} pe punct (Limited median ${eur(best.c.med)}).`:'Prea puțini jucători cu preț în competiția asta.';
-  return `<div class="card"><div class="ph"><div><h3>Harta pieței · ${esc(comp)}</h3><p>Cât costă un card Limited pe fiecare poziție și Tier, doar în competiția aleasă. Verde = poziția cea mai ieftină pe punct de Q Clasă în coloana ei. Sub preț: cea mai bună țintă din căsuță.</p></div>
+  const TT=['Best in Class','Elite','Strong'];
+  const pool=P.filter(p=>p.comp===comp&&p.lim&&p.tier&&(!HASL5||p.status==='Titular'||p.status==='Rotatie'));
+  const PL={Goalkeeper:'portari',Defender:'fundași',Midfielder:'mijlocași',Forward:'atacanți'};
+  const cell=(pos,t)=>{const xs=pool.filter(p=>p.pos===pos&&p.tier===t);if(xs.length<3)return null;const med=median(xs.map(p=>p.lim));
+    return {med,n:xs.length,picks:xs.filter(p=>p.lim<=med*1.1&&p.fl).sort((a,b)=>b.ts-a.ts).slice(0,3)};};
+  const C={};for(const pos of POSORD)for(const t of TT.concat(['Good']))C[pos+t]=cell(pos,t);
+  const names=xs=>xs.map(p=>`<span class="a" data-open="${p.id}">${esc(p.n)}</span> ${eur(p.lim)}`).join(', ');
+  // 1) slotul Extra: doar jucatori de camp
+  const OUT=['Defender','Midfielder','Forward'];
+  const extra=TT.map(t=>{const cs=OUT.map(pos=>({pos,c:C[pos+t]})).filter(x=>x.c);if(cs.length<2)return '';
+    cs.sort((a,b)=>a.c.med-b.c.med);const w=cs[0],mx=cs[cs.length-1].c.med;
+    return `<div class="bud-r"><div class="bud-h">${ttag(t)}<span>cel mai ieftin: <b>${PL[w.pos]}</b>, ~${eur(w.c.med)}</span></div>
+      ${cs.map(x=>`<div class="bud-b"><span>${ptag(x.pos)}</span><div class="t"><i style="width:${x.c.med/mx*100}%;background:var(--p${POSS[x.pos]})"></i></div><span class="num">${eur(x.c.med)}</span></div>`).join('')}
+      ${w.c.picks.length?`<div class="bud-p">Ținte: ${names(w.c.picks)}</div>`:''}</div>`;}).join('');
+  // 2) saltul de Tier: cat costa in plus sa urci un jucator un nivel, pe fiecare pozitie
+  const STEPS=[['Strong','Elite'],['Elite','Best in Class']];
+  const steps=STEPS.map(([lo,hi])=>{const cs=POSORD.map(pos=>{const a=C[pos+lo],b=C[pos+hi];return a&&b?{pos,d:Math.max(0,b.med-a.med),b}:null;}).filter(Boolean);if(!cs.length)return '';
+    cs.sort((x,y)=>x.d-y.d);const w=cs[0],mx=Math.max(...cs.map(x=>x.d),1e-9);
+    return `<div class="bud-r"><div class="bud-h">${ttag(lo)}<span class="muted">→</span>${ttag(hi)}<span>începe cu <b>${PL[w.pos]}</b>: +${eur(w.d)}</span></div>
+      ${cs.map(x=>`<div class="bud-b"><span>${ptag(x.pos)}</span><div class="t"><i style="width:${Math.max(2,x.d/mx*100)}%;background:var(--p${POSS[x.pos]})"></i></div><span class="num">+${eur(x.d)}</span></div>`).join('')}
+      ${w.b.picks.length?`<div class="bud-p">${hi} ${PL[w.pos]} la preț bun: ${names(w.b.picks)}</div>`:''}</div>`;}).join('');
+  return `<div class="card"><div class="ph"><div><h3>Unde îți duci bugetul · ${esc(comp)}</h3><p>Prețuri Limited mediane, doar jucători cu Tier care joacă, în competiția aleasă.</p></div>
     ${S.comp.size===1?'':`<label class="fg"><span class="fl">Competiție</span><select data-k="mapComp">${COMPS.map(c=>`<option ${c===comp?'selected':''}>${esc(c)}</option>`).join('')}</select></label>`}</div>
-    <p style="margin:0 0 10px;font-size:13px">${head}</p>
-    <div class="mmap"><div></div>${TT.map(t=>`<div class="mh">${ttag(t)}</div>`).join('')}
-    ${POSORD.map(pos=>`<div class="mr">${ptag(pos)}</div>`+TT.map(t=>{const c=cells[pos+t];if(!c)return '<div class="mc empty0">–</div>';const lo=c.ppt===colMin[t];
-      return `<div class="mc ${lo?'lo':''}" title="${c.n} jucători · Limited median ${eur(c.med)} · ${eur(c.ppt)} pe punct de Q"><b>${eur(c.med)}</b><span>${eur(c.ppt)}/pct · ${c.n}</span>${c.pick?`<span class="a" data-open="${c.pick.id}">${esc(c.pick.n)} ${eur(c.pick.lim)}</span>`:''}</div>`;}).join('')).join('')}</div>
-    <p class="note">Doar jucători cu Tier, care joacă și au preț Limited. Căsuțele cu sub 3 jucători nu au preț median.</p></div>`;
+    <div class="bud">
+      <div><div class="g-h">Pentru slotul Extra</div><p class="bud-i">Acolo poți pune orice jucător de câmp. La același nivel, ia poziția cea mai ieftină.</p>${extra||'<div class="muted">Prea puțini jucători cu preț.</div>'}</div>
+      <div><div class="g-h">Upgrade-ul cel mai ieftin</div><p class="bud-i">Cât plătești în plus ca să urci un jucător un nivel. Cu buget mic, urcă întâi poziția unde saltul costă cel mai puțin.</p>${steps||'<div class="muted">Prea puțini jucători cu preț.</div>'}</div>
+    </div></div>`;
 }
 function vTargets(root){
   const pool=base().filter(p=>p.lim&&p.fl&&tierOk(p.tier,S.tgTier)&&p.form!=='Dropping'&&!(p.ls||'').startsWith('Overpriced')&&(!HASL5||!S.tgStatus.size||S.tgStatus.has(p.status))&&badgeOk(p,S.tgBadge));
@@ -1525,8 +1546,9 @@ function vNews(root){
     const cp=bp.filter(p=>p.prev);
     const pc=S.nwPrice==='rare'?'rare':'lim',pl=pc==='rare'?'Rare':'Limited';
     const mv=cp.filter(p=>p[pc]&&p.prev[pc]&&Math.max(p[pc],p.prev[pc])>=2).map(p=>Object.assign(p,{_d:pct(p[pc],p.prev[pc])}));
-    const upP=mv.filter(p=>p._d>=15).sort((a,b)=>b._d-a._d).slice(0,15),dnP=mv.filter(p=>p._d<=-15).sort((a,b)=>a._d-b._d).slice(0,15);
-    const pcols=[['Jucător',who],['Badge',p=>btag(p.badge)],['Înainte',p=>eur(p.prev[pc]),'r'],['Acum',p=>`<b>${eur(p[pc])}</b>`,'r'],['',p=>`<span class="${p._d>0?'up':'dn'}">${sgn(p._d)}%</span>`,'r'],['De ce, probabil',p=>esc(p.form&&p.form!==p.prev.form?`formă ${p.prev.form||'–'} → ${p.form}`:p.status!==p.prev.status?`${STN[p.prev.status]||'–'} → ${STN[p.status]||'–'}`:p.form?'formă '+p.form:''),'muted']];
+    mv.forEach(p=>p._e=p[pc]-p.prev[pc]);const big=p=>Math.abs(p._e)>=1&&Math.abs(p._d)>=15;
+    const upP=mv.filter(p=>p._e>0&&big(p)).sort((a,b)=>b._e-a._e).slice(0,15),dnP=mv.filter(p=>p._e<0&&big(p)).sort((a,b)=>a._e-b._e).slice(0,15);
+    const pcols=[['Jucător',who],['Badge',p=>btag(p.badge)],['Înainte',p=>eur(p.prev[pc]),'r'],['Acum',p=>`<b>${eur(p[pc])}</b>`,'r'],['Diferență',p=>`<span class="${p._d>0?'up':'dn'}">${p._e>0?'+':'−'}${eur(Math.abs(p._e))}</span> <span class="muted">${sgn(p._d)}%</span>`,'r'],['De ce, probabil',p=>esc(p.form&&p.form!==p.prev.form?`formă ${p.prev.form||'–'} → ${p.form}`:p.status!==p.prev.status?`${STN[p.prev.status]||'–'} → ${STN[p.status]||'–'}`:p.form?'formă '+p.form:''),'muted']];
     const newT=cp.filter(p=>p.status==='Titular'&&p.prev.status&&p.prev.status!=='Titular').sort((a,b)=>b.qc-a.qc).slice(0,15);
     const lostT=cp.filter(p=>p.prev.status==='Titular'&&p.status&&p.status!=='Titular').sort((a,b)=>(b.lim||0)-(a.lim||0)).slice(0,15);
     const tcols=[['Jucător',who],['Înainte',p=>stag(p.prev)],['Acum',p=>stag(p)],['Tier',p=>ttag(p.tier)],['L5',p=>p.l5??'–','r'],['Limited',p=>eur(p.lim),'r']];
@@ -1536,24 +1558,26 @@ function vNews(root){
     const tc2=[['Jucător',who],['Înainte',p=>p.prev.tier?ttag(p.prev.tier):'<span class="muted">fără</span>'],['Acum',p=>p.tier?ttag(p.tier):`<span class="muted" title="${esc(p.noTier||'')}">fără</span>`],['Q',p=>`${f1(p.prev.qc)} → <b>${f1(p.qc)}</b>`,'r'],['Limited',p=>eur(p.lim),'r']];
     const bch=cp.filter(p=>(p.badge||'')!==(p.prev.badge||'')).sort((a,b)=>(b.bplus?1:0)-(a.bplus?1:0)||(b.badge?1:0)-(a.badge?1:0)||b.qc-a.qc).slice(0,20);
     const tr=cp.filter(p=>p.club!==p.prev.club).sort((a,b)=>b.qc-a.qc).slice(0,20);
-    const nUp=mv.filter(p=>p._d>=15).length,nDn=mv.filter(p=>p._d<=-15).length;
+    const nUp=mv.filter(p=>p._e>0&&big(p)).length,nDn=mv.filter(p=>p._e<0&&big(p)).length;
     changes=`
     <div class="kpis">
-      <div class="kpi"><div class="l">${pl} în creștere</div><div class="v" style="color:var(--ok)">${nUp}</div><div class="s">+15% sau mai mult</div></div>
-      <div class="kpi"><div class="l">${pl} în scădere</div><div class="v" style="color:var(--err)">${nDn}</div><div class="s">−15% sau mai mult</div></div>
+      <div class="kpi"><div class="l">${pl} în creștere</div><div class="v" style="color:var(--ok)">${nUp}</div><div class="s">+15% și minim €1</div></div>
+      <div class="kpi"><div class="l">${pl} în scădere</div><div class="v" style="color:var(--err)">${nDn}</div><div class="s">−15% și minim €1</div></div>
       <div class="kpi"><div class="l">Titulari noi</div><div class="v">${cp.filter(p=>p.status==='Titular'&&p.prev.status&&p.prev.status!=='Titular').length}</div><div class="s">nu erau titulari data trecută</div></div>
       <div class="kpi"><div class="l">Și-au pierdut locul</div><div class="v">${cp.filter(p=>p.prev.status==='Titular'&&p.status&&p.status!=='Titular').length}</div><div class="s">erau titulari data trecută</div></div>
     </div>
-    <div class="fbar" style="margin-bottom:14px"><div class="fg"><span class="fl">Prețuri pe</span><span class="seg2"><button class="${pc==='lim'?'on':''}" data-seg="nwPrice:lim">Limited</button><button class="${pc==='rare'?'on':''}" data-seg="nwPrice:rare">Rare</button></span></div><span class="muted" style="font-size:12px">Doar carduri care au costat cel puțin €2 măcar o dată.</span></div>
     <div class="dgrid even">
-      <div class="card"><div class="ph"><div><h3>S-au scumpit</h3><p>Prețul ${pl} mediu, acum față de fișierul anterior.</p></div></div>${mtbl(upP,pcols)}</div>
-      <div class="card"><div class="ph"><div><h3>S-au ieftinit</h3><p>Dacă jucătorul e tot bun, poate fi o ocazie. Dacă nu mai joacă, piața a reacționat.</p></div></div>${mtbl(dnP,pcols)}</div>
       <div class="card"><div class="ph"><div><h3>Titulari noi</h3><p>Nu erau titulari data trecută, acum sunt. Prețul s-ar putea să nu fi apucat să crească.</p></div></div>${mtbl(newT,tcols)}</div>
       <div class="card"><div class="ph"><div><h3>Și-au pierdut locul</h3><p>Erau titulari data trecută, acum nu mai sunt. Sortați după preț, adică după cât ai de pierdut.</p></div></div>${mtbl(lostT,tcols)}</div>
       <div class="card"><div class="ph"><div><h3>Au urcat de Tier</h3><p>Pe Clasă, în competiția lor.</p></div></div>${mtbl(tUp,tc2)}</div>
       <div class="card"><div class="ph"><div><h3>Au coborât de Tier</h3><p>Inclusiv cei care și-au pierdut Tier-ul (nu joacă sau prea puține meciuri).</p></div></div>${mtbl(tDn,tc2)}</div>
       <div class="card"><div class="ph"><div><h3>Badge schimbat</h3><p>Badge nou, badge pierdut sau plus / Prime câștigat ori pierdut.</p></div></div>${mtbl(bch,[['Jucător',who],['Înainte',p=>p.prev.badge?btag(p.prev.badge):'<span class="muted">fără</span>'],['Acum',p=>p.badge?btag(p.badge):'<span class="muted">fără</span>'],['Tier',p=>ttag(p.tier)],['Limited',p=>eur(p.lim),'r']])}</div>
       <div class="card"><div class="ph"><div><h3>Transferuri</h3><p>Club schimbat față de data trecută. L40 e încă în mare parte de la fostul club.</p></div></div>${mtbl(tr,[['Jucător',p=>`<div class="pn">${esc(p.n)}</div><div class="pc2">${POSS[p.pos]}</div>`],['De la',p=>`<span class="muted">${esc(p.prev.club)}</span>`],['La',p=>`<b>${esc(p.club)}</b>`],['Competiție',p=>esc(p.comp)],['Limited',p=>eur(p.lim),'r']],'Niciun transfer.')}</div>
+    </div>
+    <div class="fbar" style="margin:14px 0"><div class="fg"><span class="fl">Prețuri pe</span><span class="seg2"><button class="${pc==='lim'?'on':''}" data-seg="nwPrice:lim">Limited</button><button class="${pc==='rare'?'on':''}" data-seg="nwPrice:rare">Rare</button></span></div><span class="muted" style="font-size:12px">Sortate după euro, nu după procent: întâi cardurile unde s-au mișcat bani adevărați. Minim €1 și 15%.</span></div>
+    <div class="dgrid even">
+      <div class="card"><div class="ph"><div><h3>S-au scumpit</h3><p>Prețul ${pl} mediu, acum față de fișierul anterior.</p></div></div>${mtbl(upP,pcols)}</div>
+      <div class="card"><div class="ph"><div><h3>S-au ieftinit</h3><p>Dacă jucătorul e tot bun, poate fi o ocazie. Dacă nu mai joacă, piața a reacționat.</p></div></div>${mtbl(dnP,pcols)}</div>
     </div>`;
   }
   // alerte pe datele de acum: merg si fara fisierele anterioare
@@ -1562,10 +1586,7 @@ function vNews(root){
   const dump=bp.filter(p=>p.lim>=2&&p.fl&&p.lim/p.fl>=1.5&&p.ls!=='Overpriced (Form)'&&sellBad(p)).sort((a,b)=>(b.lim||0)-(a.lim||0)).slice(0,15);
   root.innerHTML=`
   <div class="fbar">${commonFilters(false,true)}</div>
-  <div class="card" style="margin-bottom:14px;padding:12px 16px"><div class="ph" style="margin:0"><div><h3>Ce s-a schimbat de data trecută</h3><p>Fiecare grup de fișiere e comparat cu fișierul lui anterior din data/. Un grup fără fișier nou nu apare în comparație, ca să nu vezi schimbări false.</p></div></div>
-    <div class="gchips">${chips||'<span class="muted">Fără informații despre fișiere.</span>'}</div></div>
-  ${changes}
-  <h3 class="bline" style="margin-top:22px">Alerte și vânzări</h3>
+  <h3 class="bline" style="margin-top:4px">Alerte și vânzări</h3>
   <div class="dgrid even">
     <div class="card"><div class="ph"><div><h3>Își pierde locul</h3><p>Titular aproape mereu pe L40, dar nu mai pornește titular în ultimele 5. Semnal de vânzare înainte să scadă prețul. ${PREV?'<b>nou</b> = era titular data trecută.':''}</p></div></div>
       ${mtbl(lose,[['Jucător',who],['Status',p=>stag(p)+(p.prev&&p.prev.status==='Titular'?' <span class="tag st-new">nou</span>':'')],['De ce',p=>`<span class="muted">${esc(losingWhy(p))}</span>`],['Titular L40',p=>`${p.gs}/${p.gp}`,'r'],['Limited',p=>eur(p.lim),'r']])}</div>
@@ -1575,7 +1596,12 @@ function vNews(root){
       <div class="card"><div class="ph"><div><h3>Scapă de el</h3><p>Scump pentru ce produce și, pe deasupra, ceva serios merge prost: formă în prăbușire (Dropping), nu mai joacă sau minutele au scăzut clar.</p></div></div>
         ${mtbl(dump,[['Jucător',who],['De ce',p=>`<span class="muted">${esc(sellWhy(p).join(' · '))}</span>`],['Limited',p=>`<b>${eur(p.lim)}</b>`,'r']])}</div>
     </div>
-  </div>`;
+  </div>
+  <h3 class="bline" style="margin-top:22px">Ce s-a schimbat de data trecută</h3>
+  <div class="card" style="margin-bottom:14px;padding:12px 16px"><div class="ph" style="margin:0"><div><h3>Ce comparăm</h3><p>Fiecare grup de fișiere e comparat cu fișierul lui anterior din data/. Un grup fără fișier nou nu apare în comparație, ca să nu vezi schimbări false.</p></div></div>
+    <div class="gchips">${chips||'<span class="muted">Fără informații despre fișiere.</span>'}</div></div>
+  ${changes}
+`;
   bindCommon(root);
 }
 
@@ -1603,14 +1629,32 @@ function cmpVerdict(a,b){
     if(a.fl&&b.fl){const va=a.lim/a.fl,vb=b.lim/b.fl;if(Math.abs(va-vb)>=0.25){const x=va<vb?a:b;s.push(`Față de prețul corect, <b>${esc(x.n)}</b> e afacerea mai bună (${Math.round((x.lim/x.fl-1)*100)}% față de corect).`);}}}
   return s;
 }
-// scara barelor: percentila 95 din toata baza, ca diferentele mici sa arate mici
+// scara barelor: maximul din toata baza, ca diferentele mici sa arate mici
 const Q95={};
-function q95(k,get){if(Q95[k]&&Q95[k].n===P.length)return Q95[k].v;const xs=P.map(get).filter(v=>v!=null&&isFinite(v)).map(Math.abs).sort((a,b)=>a-b);const v=xs.length?xs[Math.floor(xs.length*.95)]:1;Q95[k]={n:P.length,v};return v;}
+function q95(k,get){if(Q95[k]&&Q95[k].n===P.length)return Q95[k].v;const xs=P.map(get).filter(v=>v!=null&&isFinite(v)).map(Math.abs).sort((a,b)=>a-b);const v=xs.length?xs[xs.length-1]:1;Q95[k]={n:P.length,v};return v;}
+// radar: fiecare jucator ca percentila fata de cei de pe pozitia lui (cu Tier), pe 6 axe
+function cmpRadar(A,B){
+  const AX=[['Nivel',p=>p.qc],['Formă',p=>p.l5],['Siguranță',p=>p.p50],['Plafon',p=>p.p75],['Minute',p=>p.min],['Valoare',p=>p.lim&&p.fl?p.fl/p.lim:null]];
+  const pc=(x,get)=>{const v=get(x);if(v==null)return 0;const pool=P.filter(o=>o.pos===x.pos&&o.tier).map(get).filter(v=>v!=null);if(!pool.length)return 0;return pool.filter(w=>w<=v).length/pool.length*100;};
+  const W=300,H=270,cx=W/2,cy=H/2+4,R=96,n=AX.length,ang=i=>-Math.PI/2+i*2*Math.PI/n;
+  const pt=(i,v)=>[cx+Math.cos(ang(i))*R*v/100,cy+Math.sin(ang(i))*R*v/100];
+  let g='';
+  [25,50,75,100].forEach(l=>g+=`<polygon points="${AX.map((_,i)=>pt(i,l).join(',')).join(' ')}" fill="none" stroke="var(--grid)" stroke-width="1"/>`);
+  AX.forEach((a,i)=>{const [x,y]=pt(i,100),[lx,ly]=pt(i,122);g+=`<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="var(--grid)"/><text x="${lx}" y="${ly+4}" text-anchor="middle" style="font:600 11px -apple-system,BlinkMacSystemFont,Segoe UI,Inter,Roboto,sans-serif;fill:#374151">${a[0]}</text>`;});
+  const col=['#4f46e5','#f97316'];
+  const vals=[A,B].map(x=>AX.map(a=>pc(x,a[1])));
+  vals.forEach((vs,k)=>{g+=`<polygon points="${vs.map((v,i)=>pt(i,v).join(',')).join(' ')}" fill="${col[k]}" fill-opacity=".18" stroke="${col[k]}" stroke-width="2.2" stroke-linejoin="round"/>`;
+    g+=vs.map((v,i)=>{const [x,y]=pt(i,v);return `<circle cx="${x}" cy="${y}" r="3.2" fill="${col[k]}"><title>${esc([A,B][k].n)} · ${AX[i][0]}: peste ${Math.round(v)}% din ${POSN[[A,B][k].pos]?.toLowerCase()||''}i cu Tier</title></circle>`;}).join('');});
+  const wins=AX.map((a,i)=>vals[0][i]>vals[1][i]+5?0:vals[1][i]>vals[0][i]+5?1:-1);
+  return `<div class="crad"><svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:340px;display:block;margin:0 auto;overflow:visible">${g}</svg>
+    <div class="legend" style="justify-content:center;margin-top:2px"><span><i style="background:${col[0]}"></i>${esc(A.n)} · ${wins.filter(w=>w===0).length} axe</span><span><i style="background:${col[1]}"></i>${esc(B.n)} · ${wins.filter(w=>w===1).length} axe</span></div>
+    <p class="note" style="text-align:center;margin-top:4px">Percentilă față de jucătorii cu Tier de pe aceeași poziție. Formă = L5, Siguranță = meciuri 50+, Plafon = meciuri 75+, Valoare = prețul corect față de prețul Limited.</p></div>`;
+}
 function vCmp(root){
   const A=S.cmpA?P.find(p=>p.slug===S.cmpA):null,B=S.cmpB?P.find(p=>p.slug===S.cmpB):null;
   const slot=(k,x)=>{const qk=k==='A'?'cmpQA':'cmpQB',qq=S[qk].trim().toLowerCase();
     const hits=qq?P.filter(p=>p.n.toLowerCase().includes(qq)||p.club.toLowerCase().includes(qq)).sort((a,b)=>b.qc-a.qc).slice(0,7):[];
-    return `<div class="cslot card">${x?`<div class="cs-h"><div style="min-width:0"><div class="pn" style="font-size:18px;letter-spacing:-.3px" data-open="${x.id}">${esc(x.n)}</div><div class="pc2" style="max-width:none">${esc(x.club)} · ${esc(x.comp)} · ${POSN[x.pos]||''} · ${x.age??'?'} ani</div></div><button class="xbtn" data-cclr="${k}" title="Scoate">×</button></div>
+    return `<div class="cslot card">${x?`<div class="cs-h"><div style="min-width:0"><div class="pn" style="font-size:18px;letter-spacing:-.3px;color:${k==='A'?'#4f46e5':'#ea580c'}" data-open="${x.id}">${esc(x.n)}</div><div class="pc2" style="max-width:none">${esc(x.club)} · ${esc(x.comp)} · ${POSN[x.pos]||''} · ${x.age??'?'} ani</div></div><button class="xbtn" data-cclr="${k}" title="Scoate">×</button></div>
       <div class="dr-tags" style="margin:8px 0 0">${x.tier?ttag(x.tier):''}${btag(x.badge)}${stag(x)}${tag(x.form)}${upgTag(x)}</div>`:`<div class="muted" style="font-size:12px;margin-bottom:6px">Jucătorul ${k==='A'?'1':'2'}</div>`}
       <input type="search" data-k="${qk}" class="sbox" style="margin-top:10px" placeholder="${x?'schimbă jucătorul':'caută jucător sau club'}" value="${esc(S[qk])}">
       ${hits.length?`<div class="hits">${hits.map(p=>`<button data-cset="${k}:${esc(p.slug)}"><span>${esc(p.n)}</span><span class="muted">${esc(p.club)} · ${POSS[p.pos]}</span><span class="muted" style="margin-left:auto">${f1(p.qc)}</span></button>`).join('')}</div>`:''}</div>`;};
@@ -1621,15 +1665,15 @@ function vCmp(root){
       ['g','De unde vin punctele'],['AA L40',x=>x.aa,f1,1],['Decisive L40',x=>x.dec,f1,1],
       ['g','Cât de sigur e'],['Meci decent (50+)',x=>x.p50,v=>v==null?'–':Math.round(v)+'%',1,100],['Meci bun (60+)',x=>x.p60,v=>v==null?'–':Math.round(v)+'%',1,100],['Meci mare (75+)',x=>x.p75,v=>v==null?'–':Math.round(v)+'%',1,100],['Sub 50',x=>x.low,v=>v==null?'–':Math.round(v)+'%',-1,100],
       ['g','Cât joacă'],['Joacă L40',x=>x.play,v=>Math.round(v)+'%',1,100],['Minute pe meci L40',x=>x.min,v=>Math.round(v)+'′',1,90],['Titular L40',x=>x.gp?x.gs/x.gp*100:null,v=>v==null?'–':Math.round(v)+'%',1,100],...(HASL5?[['Titular L5',x=>x.gs5,v=>v+'/5',1,5],['Minute pe meci L5',x=>x.m5,v=>Math.round(v)+'′',1,90]]:[]),
-      ['g','Preț'],['Limited',x=>x.lim,eur,-1],['Față de corect',x=>x.lim&&x.fl?x.lim/x.fl*100:null,v=>v==null?'–':(v<100?'−':'+')+Math.abs(Math.round(v-100))+'%',-1],['€ pe punct de L40',pp,eur,-1],['Rare',x=>x.rare,eur,-1]];
+      ['g','Preț'],['Limited',x=>x.lim,eur,-1,'L'],['Față de corect',x=>x.lim&&x.fl?x.lim/x.fl*100:null,v=>v==null?'–':(v<100?'−':'+')+Math.abs(Math.round(v-100))+'%',-1,'L'],['€ pe punct de L40',pp,eur,-1,'L'],['Rare',x=>x.rare,eur,-1,'L']];
     const rows=R.map(r=>{if(r[0]==='g')return `<div class="cg">${r[1]}</div>`;
-      const [l,get,fmt,dir,cap]=r,a=get(A),b=get(B);const mx=cap||Math.max(q95(l,get),Math.abs(a||0),Math.abs(b||0),1e-9);
+      const [l,get,fmt,dir,cap]=r,a=get(A),b=get(B);const mx=cap==='L'?Math.max(Math.abs(a||0),Math.abs(b||0),1e-9)*1.15:cap||Math.max(q95(l,get),Math.abs(a||0),Math.abs(b||0),1e-9);
       const win=a==null||b==null||a===b?0:(a>b?1:-1)*dir;
-      return `<div class="cr"><div class="cv ${win>0?'w':''}">${fmt(a)}</div><div class="cb l"><i style="width:${a==null?0:Math.min(100,Math.abs(a)/mx*100)}%" class="${win>0?'w':''}"></i></div><div class="cl">${l}</div><div class="cb"><i style="width:${b==null?0:Math.min(100,Math.abs(b)/mx*100)}%" class="${win<0?'w':''}"></i></div><div class="cv r ${win<0?'w':''}">${fmt(b)}</div></div>`;}).join('');
+      return `<div class="cr"><div class="cv ${win>0?'wa':''}">${fmt(a)}</div><div class="cb l"><i style="width:${a==null?0:Math.min(100,Math.abs(a)/mx*100)}%" class="${win>0?'wa':''}"></i></div><div class="cl">${l}</div><div class="cb"><i style="width:${b==null?0:Math.min(100,Math.abs(b)/mx*100)}%" class="${win<0?'wb':''}"></i></div><div class="cv r ${win<0?'wb':''}">${fmt(b)}</div></div>`;}).join('');
     const altH=x=>{const al=cmpAlts(x);return `<div><div class="g-h" style="margin-bottom:6px">Ca ${esc(x.n)}, dar mai ieftini</div>${al.length?`<div class="mini">${al.map(o=>`${ptag(o.pos)}<span class="a" data-open="${o.id}">${esc(o.n)}</span><span class="num">${eur(o.lim)}</span><button class="link" data-cset="${x===A?'A':'B'}:${esc(o.slug)}" title="Pune-l în comparație în locul lui ${esc(x.n)}">compară</button>`).join('')}</div>`:'<div class="muted" style="font-size:12px">Niciun jucător mai ieftin cu profil asemănător.</div>'}</div>`;};
-    body=`<div class="card" style="margin-top:14px"><div class="ph"><div><h3>Pe scurt</h3></div></div><ul class="cverd">${cmpVerdict(A,B).map(x=>`<li>${x}</li>`).join('')}</ul></div>
-      <div class="card" style="margin-top:14px"><div class="ctable"><div class="cr ch2"><div class="cv" style="grid-column:span 2">${esc(A.n)}</div><div class="cl"></div><div class="cv r" style="grid-column:span 2">${esc(B.n)}</div></div>${rows}</div>
-        <p class="note">Bara colorată = cine stă mai bine la rândul ăla. La preț și la „Sub 50”, mai puțin e mai bine. Procentele de meciuri sunt din meciurile jucate în ultimele 40.</p></div>
+    body=`<div class="card" style="margin-top:14px"><div class="cpair"><div><div class="ph"><div><h3>Pe scurt</h3></div></div><ul class="cverd">${cmpVerdict(A,B).map(x=>`<li>${x}</li>`).join('')}</ul></div>${cmpRadar(A,B)}</div></div>
+      <div class="card" style="margin-top:14px"><div class="ctable"><div class="cr ch2"><div class="cv" style="grid-column:span 2;color:#4f46e5">${esc(A.n)}</div><div class="cl"></div><div class="cv r" style="grid-column:span 2;color:#ea580c">${esc(B.n)}</div></div>${rows}</div>
+        <p class="note">Bara colorată (în culoarea jucătorului, ca pe radar) = cine stă mai bine la rândul ăla. Barele sunt față de maximul din toată baza; la preț, doar între cei doi. La preț și la „Sub 50”, mai puțin e mai bine. Procentele de meciuri sunt din meciurile jucate în ultimele 40.</p></div>
       <div class="card" style="margin-top:14px"><div class="ph"><div><h3>Alternative mai ieftine</h3><p>Aceeași competiție și poziție, ${HASL5?'joacă acum, ':''}același tip de card, scoruri asemănătoare (50+ și 75+), Q Clasă cel mult cu 4 sub, Limited cu cel puțin 20% mai ieftin.</p></div></div>
         <div class="dgrid even">${altH(A)}${altH(B)}</div></div>`;
   } else body=`<div class="card" style="margin-top:14px"><div class="empty" style="border:0">Alege doi jucători. Poți porni și din fișa oricărui jucător, cu butonul ⇄ Compară.</div></div>`;
