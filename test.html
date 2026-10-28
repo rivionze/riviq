@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RIVIQ test date</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:#f6f7f9; color:#1c2230; margin:0; padding:24px 16px; }
+  .wrap { max-width:760px; margin:0 auto; }
+  h1 { font-size:20px; margin:0 0 4px; }
+  .sub { color:#667085; font-size:14px; margin-bottom:20px; }
+  .card { background:#fff; border:1px solid #e4e7ec; border-radius:10px; padding:14px 16px; margin-bottom:12px; }
+  .row { display:flex; gap:10px; align-items:flex-start; }
+  .ic { width:22px; flex:0 0 22px; font-weight:700; }
+  .ok { color:#12805c; } .bad { color:#c4320a; } .warn { color:#b54708; } .wait { color:#667085; }
+  .t { font-weight:600; }
+  .d { color:#475467; font-size:14px; margin-top:3px; line-height:1.45; }
+  code { background:#f2f4f7; padding:1px 5px; border-radius:4px; font-size:13px; }
+  .big { font-size:16px; font-weight:700; padding:14px 16px; border-radius:10px; margin-top:16px; }
+  .big.ok { background:#ecfdf3; border:1px solid #abefc6; }
+  .big.bad { background:#fef3f2; border:1px solid #fecdca; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>RIVIQ · test încărcare date</h1>
+  <div class="sub">Pagină de test. Nu atinge aplicația. Verifică dacă fișierele din folderul <code>data/</code> se pot citi de pe link.</div>
+  <div id="out"></div>
+  <div id="verdict"></div>
+</div>
+<script>
+(async function(){
+  // owner/repo din link (rivionze.github.io/riviq/...). Daca nu merge, valori fixe.
+  const host = location.hostname, seg = location.pathname.split('/').filter(Boolean);
+  const OWNER = host.endsWith('.github.io') ? host.split('.')[0] : 'rivionze';
+  const REPO  = host.endsWith('.github.io') && seg.length ? seg[0] : 'riviq';
+
+  // orice fisier de forma <grup>_players_stats_AAAALLZZ_HHMMSS.xlsx; grupul = ce e inainte de _players_stats
+  const FILE_RE = /^(.+?)_players_stats_(\d{8})_(\d{6})\.xlsx$/i;
+  const LABELS = { champion:'Top 4 ligi', contender_is:'Contender', championship:'Championship', mls:'MLS' };
+  const REQ = ["Slug","Player Name","Position","Club","Current League","Age","L10","L40","Play % L40","Games Played L40","Game Started L40","Min Play/90 L40","AA L40","Decisive L40","Score 100","Score 75-99","Score 60-74","Score 50-59","Score 35-49","Score 20-34","Score 0-19","DNP L40","Avg Limited IS (€)","Avg Rare IS (€)"];
+
+  const out = document.getElementById('out');
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  let fails = 0;
+  function step(kind, title, detail){
+    if (kind === 'bad') fails++;
+    const icon = {ok:'✓', bad:'✗', warn:'!', wait:'…'}[kind];
+    const el = document.createElement('div'); el.className = 'card';
+    el.innerHTML = `<div class="row"><div class="ic ${kind}">${icon}</div><div><div class="t">${title}</div>${detail ? `<div class="d">${detail}</div>` : ''}</div></div>`;
+    out.appendChild(el); return el;
+  }
+
+  // 1. biblioteca Excel
+  if (typeof XLSX === 'undefined') { step('bad', 'Nu s-a încărcat cititorul de Excel', 'Verifică internetul și dă refresh.'); return finish(); }
+
+  // 2. lista din data/
+  let list;
+  try {
+    const r = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/data`, { cache:'no-store' });
+    const left = r.headers.get('X-RateLimit-Remaining'), lim = r.headers.get('X-RateLimit-Limit');
+    if (r.status === 404) { step('bad', 'Nu găsesc folderul data/', `Caut în <code>${OWNER}/${REPO}</code>. Verifică dacă folderul se numește exact <code>data</code> (litere mici) și e lângă <code>index.html</code>.`); return finish(); }
+    if (r.status === 403) { step('bad', 'GitHub a refuzat lista de fișiere (limită atinsă)', `Mai încearcă peste o oră. Rămase: ${left ?? '?'}`); return finish(); }
+    if (!r.ok) { step('bad', 'GitHub a răspuns cu eroare ' + r.status, ''); return finish(); }
+    list = (await r.json()).filter(x => x.type === 'file').map(x => x.name);
+    step('ok', `Am găsit folderul data/ cu ${list.length} fișier(e)`, `Repo: <code>${OWNER}/${REPO}</code> · cereri GitHub rămase ora asta, pe conexiunea ta: <b>${left ?? '?'}</b> din ${lim ?? '?'}`);
+  } catch(e) { step('bad', 'Nu am putut întreba GitHub ce fișiere sunt', esc(e.message)); return finish(); }
+
+  // 3. alegem cel mai nou fisier pe grup (grupurile nu sunt fixe: cate fisiere sunt, atatea grupuri)
+  const groups = {};
+  for (const n of list) { const m = n.match(FILE_RE); if (!m) continue; const k = m[1].toLowerCase(); (groups[k] = groups[k] || []).push({ name:n, stamp:m[2] + m[3], day:m[2] }); }
+  const picked = Object.keys(groups).sort().map(k => { const c = groups[k].sort((a,b) => b.stamp.localeCompare(a.stamp)); return { g:{ label: LABELS[k] || k }, f:c[0], older:c.length - 1 }; });
+  if (!picked.length) { step('bad', 'Niciun fișier de date în data/', 'Aștept fișiere de forma <code>nume_players_stats_AAAALLZZ_HHMMSS.xlsx</code>.'); return finish(); }
+  const unknown = list.filter(n => !FILE_RE.test(n));
+  // 4. descarcam si citim fiecare fisier
+  const slugs = new Set(); let dup = 0, total = 0; const days = [];
+  for (const p of picked) {
+    const t0 = performance.now();
+    try {
+      const r = await fetch('data/' + encodeURIComponent(p.f.name), { cache:'no-cache' });
+      if (!r.ok) { step('bad', `${p.g.label}: nu am putut descărca fișierul (${r.status})`, `<code>${esc(p.f.name)}</code> · dacă tocmai l-ai urcat, așteaptă 2 minute și dă refresh.`); continue; }
+      const buf = await r.arrayBuffer();
+      const wb = XLSX.read(new Uint8Array(buf), { type:'array' });
+      const sh = wb.SheetNames.includes('Sheet1') ? 'Sheet1' : wb.SheetNames[0];
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[sh], { defval:null }).map(r => { const o = {}; for (const k in r) o[String(k).trim()] = r[k]; return o; });
+      const cols = rows.length ? Object.keys(rows[0]) : [];
+      const miss = REQ.filter(c => !cols.includes(c));
+      const leagues = {}; rows.forEach(r => { const l = r['Current League'] || '?'; leagues[l] = (leagues[l] || 0) + 1; });
+      rows.forEach(r => { if (slugs.has(r.Slug)) dup++; else slugs.add(r.Slug); });
+      total += rows.length; days.push(p.f.day);
+      const ms = Math.round(performance.now() - t0), kb = Math.round(buf.byteLength / 1024);
+      const top = Object.entries(leagues).sort((a,b) => b[1]-a[1]).slice(0,5).map(([l,n]) => `${esc(l)} ${n}`).join(' · ');
+      const d = p.f.day;
+      step(miss.length ? 'bad' : 'ok',
+        `${p.g.label}: ${rows.length.toLocaleString('ro-RO')} jucători · date din ${d.slice(6,8)}.${d.slice(4,6)}.${d.slice(0,4)}`,
+        `<code>${esc(p.f.name)}</code> · ${kb} KB în ${ms} ms${p.older ? ` · ${p.older} fișier(e) mai vechi ignorate` : ''}<br>${miss.length ? `<span class="bad">Lipsesc coloanele: ${miss.map(esc).join(', ')}</span>` : 'Toate coloanele obligatorii există.'}<br>${top}`);
+    } catch(e) { step('bad', `${p.g.label}: fișierul nu s-a putut citi`, `<code>${esc(p.f.name)}</code> · ${esc(e.message)}`); }
+  }
+
+  if (picked.length) {
+    const newest = days.slice().sort().pop(), fmt = d => d.slice(6,8) + '.' + d.slice(4,6);
+    const toDate = d => new Date(+d.slice(0,4), +d.slice(4,6) - 1, +d.slice(6,8));
+    const stale = picked.filter(p => (toDate(newest) - toDate(p.f.day)) / 864e5 > 7);
+    step(stale.length ? 'warn' : 'ok', `Total: ${(total - dup).toLocaleString('ro-RO')} jucători din ${picked.length} fișiere · date: ${fmt(newest)}`,
+      `${dup ? dup + ' dubluri între fișiere (aplicația le ignoră). ' : ''}${stale.length ? 'Mai vechi de o săptămână (se arată cu data lor): ' + stale.map(p => `${esc(p.g.label)} ${fmt(p.f.day)}`).join(', ') + '.' : 'Toate fișierele sunt la zi.'}`);
+  }
+  finish();
+
+  function finish(){
+    const v = document.getElementById('verdict');
+    v.innerHTML = fails ? `<div class="big bad">✗ Ceva nu merge. Trimite-mi un screenshot cu pagina asta.</div>` : `<div class="big ok">✓ Totul merge. Putem muta aplicația pe varianta asta.</div>`;
+  }
+})();
+</script>
+</body>
+</html>
