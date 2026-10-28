@@ -267,6 +267,14 @@
   .card.cslot{margin-top:0}
   .cslot .cs-h{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
   .cslot .pn[data-open]{cursor:pointer} .cslot .pn[data-open]:hover{color:var(--accent)}
+  .tl{display:flex;flex-direction:column;gap:6px}
+  .tl-r{display:grid;grid-template-columns:minmax(0,1fr) 56px minmax(0,1fr);gap:8px;align-items:stretch}
+  .tl-m{display:flex;align-items:center;justify-content:center}
+  .tl-p{display:flex;justify-content:space-between;gap:10px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:7px 10px;cursor:pointer;background:#fff;min-width:0}
+  .tl-p.muted{justify-content:center;cursor:default}
+  .tl-p.r{flex-direction:row-reverse;text-align:right}
+  .tl-p:hover{border-color:#c9ccfb}
+  .tl-r.wa .tl-p.l{border-color:#4f46e5;background:#f3f2ff} .tl-r.wb .tl-p.r{border-color:#f97316;background:#fff6ef}
   .cpair{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:20px;align-items:start}
   @media (max-width:900px){.cpair{grid-template-columns:1fr}}
   .crad{border-left:1px solid var(--soft);padding-left:16px}
@@ -1070,12 +1078,12 @@ const S={page:'players',comp:new Set(),pos:new Set(),
   stCur:'lim',stMet:'l10',stBud:250,club:null,
   rrQ:'',rrSel:null,
   mapComp:'',
-  cmpA:null,cmpB:null,cmpQA:'',cmpQB:'',
+  cmpA:null,cmpB:null,cmpQA:'',cmpQB:'',cmpMode:'players',cmpTA:null,cmpTB:null,cmpQTA:'',cmpQTB:'',
   nwPrice:'lim',
   sel:null};
-try{const o=JSON.parse(localStorage.getItem('riviq-scout-ui')||'{}');if(o.page)S.page=o.page;if(o.cmpA)S.cmpA=o.cmpA;if(o.cmpB)S.cmpB=o.cmpB;}catch(e){}
+try{const o=JSON.parse(localStorage.getItem('riviq-scout-ui')||'{}');if(o.page)S.page=o.page;if(o.cmpA)S.cmpA=o.cmpA;if(o.cmpB)S.cmpB=o.cmpB;if(o.cmpTA)S.cmpTA=o.cmpTA;if(o.cmpTB)S.cmpTB=o.cmpTB;if(o.cmpMode)S.cmpMode=o.cmpMode;}catch(e){}
 if(S.page==='tool'&&!window.RQ_admin)S.page='players';
-const saveUI=()=>{try{localStorage.setItem('riviq-scout-ui',JSON.stringify({page:S.page,cmpA:S.cmpA,cmpB:S.cmpB}));}catch(e){}};
+const saveUI=()=>{try{localStorage.setItem('riviq-scout-ui',JSON.stringify({page:S.page,cmpA:S.cmpA,cmpB:S.cmpB,cmpTA:S.cmpTA,cmpTB:S.cmpTB,cmpMode:S.cmpMode}));}catch(e){}};
 
 // ---------- data ----------
 function toP(out){
@@ -1171,7 +1179,7 @@ function bindCommon(root){
     el.addEventListener('keydown',e=>{if(e.key==='Enter'){clearTimeout(el._t);commit();}});
   });
   root.querySelectorAll('[data-open]').forEach(el=>el.addEventListener('click',()=>openPlayer(+el.dataset.open)));
-  root.querySelectorAll('[data-seg]').forEach(b=>b.onclick=()=>{const[k,v]=b.dataset.seg.split(':');S[k]=v==='true'?true:v==='false'?false:v;render();});
+  root.querySelectorAll('[data-seg]').forEach(b=>b.onclick=()=>{const[k,v]=b.dataset.seg.split(':');S[k]=v==='true'?true:v==='false'?false:v;if(k==='cmpMode')saveUI();render();});
 }
 
 // ================= TAB 1: Jucatori =================
@@ -1397,7 +1405,7 @@ function vStacks(root){
       <div class="card"><div class="ph"><div><h3>Randament vs cost</h3><p>Fiecare punct e stack-ul de 5 al unui club, format doar din jucători care joacă acum. Linia în trepte leagă stack-urile pe care nu le bate niciun stack mai ieftin. Ce e mult sub ea înseamnă bani plătiți degeaba.</p></div>
         <div class="legend">${COMPS.map(c=>`<span><i style="background:${compC(c)}"></i>${esc(c)}</span>`).join('')}</div></div>
         <svg class="ch" viewBox="0 0 ${W} ${H}">${g}</svg></div>
-      ${sc?`<div class="card"><div class="ph"><div><h3>${esc(sc.club)}</h3><p>${esc(sc.comp)} · ${cl} ${eur(sc.cost)} · L5 medie ${sc.l5.toFixed(1)} · L10 medie ${sc.l10.toFixed(1)} · Q mediu ${sc.q.toFixed(1)}</p></div></div>
+      ${sc?`<div class="card"><div class="ph"><div><h3>${esc(sc.club)}</h3><p>${esc(sc.comp)} · ${cl} ${eur(sc.cost)} · L5 medie ${sc.l5.toFixed(1)} · L10 medie ${sc.l10.toFixed(1)} · Q mediu ${sc.q.toFixed(1)}</p></div><button class="cbtn" data-tcmp="${esc(sc.club)}">⇄ Compară echipa</button></div>
         <div class="dt-wrap"><table class="dt"><thead><tr><th></th><th>Jucător</th><th>Status</th><th class="r">Q</th><th class="r">L5</th><th class="r">L10</th><th>Tier</th><th>Badge</th><th class="r">Limited</th><th>Semnal</th><th class="r">Rare</th><th>Upgrade</th></tr></thead><tbody>
         ${sc.ps.map(p=>`<tr class="rw" data-open="${p.id}"><td>${ptag(p.pos)}</td><td class="pn">${esc(p.n)}</td><td>${stag(p)}</td><td class="r">${f1(p.q)}</td><td class="r">${p.l5??'–'}</td><td class="r">${p.l10}</td><td>${p.tier?ttag(p.tier):p.newSt?newtag(p):tierCell(p,null)}</td><td>${btag(p.badge)}</td><td class="r">${eur(p.lim)}</td><td>${tag(p.ls)}</td><td class="r">${eur(p.rare)}</td><td>${tag(p.ru)}</td></tr>`).join('')}</tbody></table></div></div>`:''}
     </div>
@@ -1410,6 +1418,7 @@ function vStacks(root){
   ${clubForm(st,cur)}`;
   bindCommon(root);bindDots(root);
   root.querySelectorAll('tr[data-club]').forEach(tr=>tr.onclick=()=>{S.club=tr.dataset.club;render();});
+  root.querySelectorAll('[data-tcmp]').forEach(b=>b.onclick=()=>{const n=b.dataset.tcmp;if(!S.cmpTA||S.cmpTA===n)S.cmpTA=n;else S.cmpTB=n;S.cmpMode='teams';S.page='cmp';saveUI();render();window.scrollTo(0,0);});
 }
 // cluburile in forma: media (L5 - L40) a jucatorilor din stack-ul de 5, doar cei cu destule meciuri in L5
 function clubForm(st,cur){
@@ -1651,6 +1660,7 @@ function cmpRadar(A,B){
     <p class="note" style="text-align:center;margin-top:4px">Percentilă față de jucătorii cu Tier de pe aceeași poziție. Formă = L5, Siguranță = meciuri 50+, Plafon = meciuri 75+, Valoare = prețul corect față de prețul Limited.</p></div>`;
 }
 function vCmp(root){
+  if(S.cmpMode==='teams')return vCmpTeams(root);
   const A=S.cmpA?P.find(p=>p.slug===S.cmpA):null,B=S.cmpB?P.find(p=>p.slug===S.cmpB):null;
   const slot=(k,x)=>{const qk=k==='A'?'cmpQA':'cmpQB',qq=S[qk].trim().toLowerCase();
     const hits=qq?P.filter(p=>p.n.toLowerCase().includes(qq)||p.club.toLowerCase().includes(qq)).sort((a,b)=>b.qc-a.qc).slice(0,7):[];
@@ -1677,10 +1687,108 @@ function vCmp(root){
       <div class="card" style="margin-top:14px"><div class="ph"><div><h3>Alternative mai ieftine</h3><p>Aceeași competiție și poziție, ${HASL5?'joacă acum, ':''}același tip de card, scoruri asemănătoare (50+ și 75+), Q Clasă cel mult cu 4 sub, Limited cu cel puțin 20% mai ieftin.</p></div></div>
         <div class="dgrid even">${altH(A)}${altH(B)}</div></div>`;
   } else body=`<div class="card" style="margin-top:14px"><div class="empty" style="border:0">Alege doi jucători. Poți porni și din fișa oricărui jucător, cu butonul ⇄ Compară.</div></div>`;
-  root.innerHTML=`<div class="dgrid even">${slot('A',A)}${slot('B',B)}</div>${body}`;
+  root.innerHTML=cmpToggle()+`<div class="dgrid even">${slot('A',A)}${slot('B',B)}</div>${body}`;
   bindCommon(root);
   root.querySelectorAll('[data-cset]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();const [k,slug]=b.dataset.cset.split(/:(.+)/);S['cmp'+k]=slug;S[k==='A'?'cmpQA':'cmpQB']='';saveUI();render();});
   root.querySelectorAll('[data-cclr]').forEach(b=>b.onclick=()=>{S['cmp'+b.dataset.cclr]=null;saveUI();render();});
+}
+
+// ================= Comparatie: echipe =================
+const cmpToggle=()=>`<div class="fbar"><div class="fg"><span class="fl">Compară</span><span class="seg2"><button class="${S.cmpMode!=='teams'?'on':''}" data-seg="cmpMode:players">Jucători</button><button class="${S.cmpMode==='teams'?'on':''}" data-seg="cmpMode:teams">Echipe</button></span></div><span class="muted" style="font-size:12px">${S.cmpMode==='teams'?'Stack-ul de 5 al fiecărui club, după profilul '+(FORMA?'Formă':'Clasă')+' ales în Jucători, plus adâncimea lotului.':'Doi jucători față în față.'}</span></div>`;
+let CLUBS=null,CLUBS_N=-1,CLUBS_F=null;
+function clubObj(name,ps){
+  const comp=(()=>{const c={};ps.forEach(p=>c[p.comp]=(c[p.comp]||0)+1);return Object.keys(c).sort((a,b)=>c[b]-c[a])[0];})();
+  const st=ps.filter(p=>p.stack).sort((a,b)=>POSORD.indexOf(a.pos)-POSORD.indexOf(b.pos)||b.q-a.q);
+  // sloturile: cel mai bun pe fiecare pozitie, restul = Extra
+  const slots={},used=new Set();
+  for(const pos of POSORD){const x=st.find(p=>p.pos===pos);if(x){slots[pos]=x;used.add(x.id);}}
+  slots.EX=st.find(p=>!used.has(p.id))||null;
+  const avg=(xs,f)=>{const v=xs.map(f).filter(v=>v!=null);return v.length?v.reduce((a,b)=>a+b,0)/v.length:null;};
+  const fdx=st.filter(p=>p.fd!=null);
+  const lim=st.every(p=>p.lim)&&st.length?st.reduce((s,p)=>s+p.lim,0):null,rare=st.every(p=>p.rare)&&st.length?st.reduce((s,p)=>s+p.rare,0):null;
+  const fl=st.every(p=>p.fl)&&lim?st.reduce((s,p)=>s+p.fl,0):null;
+  const deep=ps.filter(p=>p.tier&&TIERS.indexOf(p.tier)<=2&&(!HASL5||p.status!=='Nu joaca'));
+  return {name,comp,ps,st,slots,full:st.length===5,q:avg(st,p=>p.q),qc:avg(st,p=>p.qc),l5:avg(st,p=>p.l5),l10:avg(st,p=>p.l10),l40:avg(st,p=>p.l40),
+    fd:fdx.length>=3?avg(fdx,p=>p.fd):null,p50:avg(st,p=>p.p50),p75:avg(st,p=>p.p75),min:avg(st,p=>p.min),aa:avg(st,p=>p.aa),dec:avg(st,p=>p.dec),
+    lim,rare,val:fl&&lim?fl/lim:null,deep:deep.length,elite:ps.filter(p=>p.tier==='Best in Class'||p.tier==='Elite').length,
+    badges:ps.filter(p=>p.badge).length,plus:ps.filter(p=>p.bplus).length,tit:HASL5?ps.filter(p=>p.status==='Titular').length:null,
+    und:ps.filter(p=>p.ls==='Undervalued').length,hot:ps.filter(p=>p.form==='Surging'||p.form==='Up').length};
+}
+function clubs(){
+  if(CLUBS&&CLUBS_N===P.length&&CLUBS_F===FORMA)return CLUBS;
+  const by=new Map();P.forEach(p=>{if(!by.has(p.club))by.set(p.club,[]);by.get(p.club).push(p);});
+  CLUBS=new Map([...by].map(([n,ps])=>[n,clubObj(n,ps)]));CLUBS_N=P.length;CLUBS_F=FORMA;return CLUBS;
+}
+function radarSvg(objs,axes,note){
+  const W=300,H=270,cx=W/2,cy=H/2+4,R=96,n=axes.length,ang=i=>-Math.PI/2+i*2*Math.PI/n;
+  const pt=(i,v)=>[cx+Math.cos(ang(i))*R*v/100,cy+Math.sin(ang(i))*R*v/100];
+  let g='';
+  [25,50,75,100].forEach(l=>g+=`<polygon points="${axes.map((_,i)=>pt(i,l).join(',')).join(' ')}" fill="none" stroke="var(--grid)"/>`);
+  axes.forEach((a,i)=>{const [x,y]=pt(i,100),[lx,ly]=pt(i,122);g+=`<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="var(--grid)"/><text x="${lx}" y="${ly+4}" text-anchor="middle" style="font:600 11px -apple-system,BlinkMacSystemFont,Segoe UI,Inter,Roboto,sans-serif;fill:#374151">${a[0]}</text>`;});
+  const col=['#4f46e5','#f97316'];
+  const vals=objs.map(o=>axes.map(a=>a[2](o)));
+  vals.forEach((vs,k)=>{g+=`<polygon points="${vs.map((v,i)=>pt(i,v).join(',')).join(' ')}" fill="${col[k]}" fill-opacity=".18" stroke="${col[k]}" stroke-width="2.2" stroke-linejoin="round"/>`+vs.map((v,i)=>{const [x,y]=pt(i,v);return `<circle cx="${x}" cy="${y}" r="3.2" fill="${col[k]}"><title>${esc(objs[k].name||objs[k].n)} · ${axes[i][0]}: peste ${Math.round(v)}%</title></circle>`;}).join('');});
+  const wins=axes.map((a,i)=>vals[0][i]>vals[1][i]+5?0:vals[1][i]>vals[0][i]+5?1:-1);
+  return `<div class="crad"><svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:340px;display:block;margin:0 auto;overflow:visible">${g}</svg>
+    <div class="legend" style="justify-content:center;margin-top:2px">${objs.map((o,k)=>`<span><i style="background:${col[k]}"></i>${esc(o.name||o.n)} · ${wins.filter(w=>w===k).length} axe</span>`).join('')}</div>
+    <p class="note" style="text-align:center;margin-top:4px">${note}</p></div>`;
+}
+function cmpRowsHtml(R,A,B,capOf){
+  return R.map(r=>{if(r[0]==='g')return `<div class="cg">${r[1]}</div>`;
+    const [l,get,fmt,dir,cap]=r,a=get(A),b=get(B);const mx=cap==='L'?Math.max(Math.abs(a||0),Math.abs(b||0),1e-9)*1.15:cap||Math.max(capOf(l,get),Math.abs(a||0),Math.abs(b||0),1e-9);
+    const win=a==null||b==null||a===b?0:(a>b?1:-1)*dir;
+    return `<div class="cr"><div class="cv ${win>0?'wa':''}">${fmt(a)}</div><div class="cb l"><i style="width:${a==null?0:Math.min(100,Math.abs(a)/mx*100)}%" class="${win>0?'wa':''}"></i></div><div class="cl">${l}</div><div class="cb"><i style="width:${b==null?0:Math.min(100,Math.abs(b)/mx*100)}%" class="${win<0?'wb':''}"></i></div><div class="cv r ${win<0?'wb':''}">${fmt(b)}</div></div>`;}).join('');
+}
+function teamVerdict(a,b){
+  const s=[],r=v=>Math.round(v||0),N=x=>`<b>${esc(x.name)}</b>`;
+  if(a.comp!==b.comp)s.push(`Sunt în competiții diferite (${esc(a.comp)} și ${esc(b.comp)}), deci Tier-urile nu se compară perfect.`);
+  if(!a.full||!b.full)s.push(`${[a,b].filter(x=>!x.full).map(x=>esc(x.name)).join(' și ')} nu are stack complet de 5 jucători care joacă acum.`);
+  if(a.q!=null&&b.q!=null){const d=a.q-b.q;s.push(Math.abs(d)>=2?`Stack-ul ${N(d>0?a:b)} e mai puternic: ${FORMA?'Q Formă':'Q Clasă'} mediu ${f1(Math.max(a.q,b.q))} față de ${f1(Math.min(a.q,b.q))}.`:`Stack-urile sunt la același nivel (${f1(a.q)} și ${f1(b.q)}).`);}
+  if(a.fd!=null&&b.fd!=null&&Math.abs(a.fd-b.fd)>=4){const [x,y]=a.fd>b.fd?[a,b]:[b,a];s.push(`${N(x)} e în formă mai bună acum: stack-ul face ${x.fd>0?'+':''}${x.fd.toFixed(1)} pe L5 față de L40, ${esc(y.name)} ${y.fd>0?'+':''}${y.fd.toFixed(1)}.`);}
+  if(a.p50!=null&&b.p50!=null&&Math.abs(a.p50-b.p50)>=6){const x=a.p50>b.p50?a:b;s.push(`${N(x)} e mai sigur: jucătorii lui fac 50+ în medie în ${r(x.p50)}% din meciuri.`);}
+  if(a.p75!=null&&b.p75!=null&&Math.abs(a.p75-b.p75)>=4){const x=a.p75>b.p75?a:b;s.push(`${N(x)} are plafon mai mare: 75+ în ${r(x.p75)}% din meciuri, în medie.`);}
+  if(a.lim&&b.lim){const [c,e]=a.lim<b.lim?[a,b]:[b,a];s.push(`Stack-ul ${N(c)} e cu ${eur(e.lim-c.lim)} mai ieftin pe Limited (${eur(c.lim)} față de ${eur(e.lim)}).`);
+    if(a.val&&b.val&&Math.abs(a.val-b.val)>=0.15){const x=a.val>b.val?a:b;s.push(`Față de prețul corect, ${N(x)} e afacerea mai bună: plătești ${Math.round(100/x.val)}% din cât ar trebui să coste.`);}}
+  if(Math.abs(a.deep-b.deep)>=3){const x=a.deep>b.deep?a:b;s.push(`${N(x)} are lotul mai adânc: ${x.deep} jucători Strong sau peste care joacă, față de ${(x===a?b:a).deep}.`);}
+  return s;
+}
+function vCmpTeams(root){
+  const CL=clubs(),A=S.cmpTA?CL.get(S.cmpTA):null,B=S.cmpTB?CL.get(S.cmpTB):null;
+  const all=[...CL.values()];
+  const slot=(k,x)=>{const qk=k==='A'?'cmpQTA':'cmpQTB',qq=(S[qk]||'').trim().toLowerCase();
+    const hits=qq?all.filter(c=>c.name.toLowerCase().includes(qq)).sort((a,b)=>(b.q||0)-(a.q||0)).slice(0,7):[];
+    return `<div class="cslot card">${x?`<div class="cs-h"><div style="min-width:0"><div class="pn" style="font-size:18px;letter-spacing:-.3px;color:${k==='A'?'#4f46e5':'#ea580c'}">${esc(x.name)}</div><div class="pc2" style="max-width:none">${esc(x.comp)} · ${x.ps.length} jucători în bază</div></div><button class="xbtn" data-ctclr="${k}" title="Scoate">×</button></div>
+      <div class="dr-tags" style="margin:8px 0 0"><span class="tag s-fair">Stack ${eur(x.lim)}</span>${x.fd!=null?`<span class="tag ${x.fd>=4?'f-up':x.fd<=-4?'f-down':'s-fair'}">Formă ${x.fd>0?'+':''}${x.fd.toFixed(1)}</span>`:''}<span class="tag s-fair">${x.elite} Elite+</span><span class="tag s-fair">${x.badges} cu badge</span></div>`:`<div class="muted" style="font-size:12px;margin-bottom:6px">Echipa ${k==='A'?'1':'2'}</div>`}
+      <input type="search" data-k="${qk}" class="sbox" style="margin-top:10px" placeholder="${x?'schimbă echipa':'caută club'}" value="${esc(S[qk]||'')}">
+      ${hits.length?`<div class="hits">${hits.map(c=>`<button data-ctset="${k}:${esc(c.name)}"><span>${esc(c.name)}</span><span class="muted">${esc(c.comp)}</span><span class="muted" style="margin-left:auto">${c.q!=null?f1(c.q):'–'}</span></button>`).join('')}</div>`:''}</div>`;};
+  let body='';
+  if(A&&B){
+    const full=all.filter(c=>c.full);
+    const pc=(x,get)=>{const v=get(x);if(v==null)return 0;const pool=full.map(get).filter(v=>v!=null);return pool.length?pool.filter(w=>w<=v).length/pool.length*100:0;};
+    const AX=[['Nivel',null,x=>pc(x,c=>c.q)],['Formă',null,x=>pc(x,c=>c.fd)],['Siguranță',null,x=>pc(x,c=>c.p50)],['Plafon',null,x=>pc(x,c=>c.p75)],['Adâncime',null,x=>pc(x,c=>c.deep)],['Valoare',null,x=>pc(x,c=>c.val)]];
+    const capT=(k,get)=>{const xs=full.map(get).filter(v=>v!=null).map(Math.abs);return xs.length?Math.max(...xs):1;};
+    const pctf=v=>v==null?'–':Math.round(v)+'%';
+    const R=[['g','Stack-ul de 5'],[FORMA?'Q Formă mediu':'Q Clasă mediu',x=>x.q,f1,1],['L5 mediu',x=>x.l5,f1,1],['L10 mediu',x=>x.l10,f1,1],['L40 mediu',x=>x.l40,f1,1],['Formă (L5 − L40)',x=>x.fd,v=>v==null?'–':(v>0?'+':'')+v.toFixed(1),1],
+      ['g','Cât de sigur e stack-ul'],['Meci decent (50+)',x=>x.p50,pctf,1,100],['Meci mare (75+)',x=>x.p75,pctf,1,100],['Minute pe meci',x=>x.min,v=>v==null?'–':Math.round(v)+'′',1,90],
+      ['g','Lotul'],['Strong sau peste, care joacă',x=>x.deep,v=>v,1],['Best in Class + Elite',x=>x.elite,v=>v,1],['Cu badge',x=>x.badges,v=>v,1],['Plus și Prime',x=>x.plus,v=>v,1],...(HASL5?[['Titulari acum',x=>x.tit,v=>v,1],['În formă (Up / Surging)',x=>x.hot,v=>v,1]]:[]),
+      ['g','Preț'],['Stack Limited',x=>x.lim,eur,-1,'L'],['Stack Rare',x=>x.rare,eur,-1,'L'],['Față de corect',x=>x.val?100/x.val:null,v=>v==null?'–':(v<100?'−':'+')+Math.abs(Math.round(v-100))+'%',-1,'L'],['Limited Undervalued în lot',x=>x.und,v=>v,1]];
+    const SL=[['Goalkeeper','GK'],['Defender','DEF'],['Midfielder','MID'],['Forward','FWD'],['EX','EX']];
+    const pcell=(p,side)=>p?`<div class="tl-p ${side}" data-open="${p.id}"><div style="min-width:0"><div class="pn">${esc(p.n)}</div><div class="pc2" style="max-width:none">${p.tier?p.tier:'fără Tier'}${p.badge?' · '+esc(p.badge):''}</div></div><div class="num"><b>${f1(p.q)}</b><div class="muted" style="font-size:11px">${eur(p.lim)}</div></div></div>`:'<div class="tl-p muted">–</div>';
+    const lineup=SL.map(([k,l])=>{const a=A.slots[k],b=B.slots[k];const w=a&&b?(a.q>b.q+1?'a':b.q>a.q+1?'b':''):'';
+      return `<div class="tl-r ${w?'w'+w:''}">${pcell(a,'l')}<div class="tl-m">${k==='EX'?'<span class="pos" style="background:#94a3b8">EX</span>':ptag(k)}</div>${pcell(b,'r')}</div>`;}).join('');
+    const wA=SL.filter(([k])=>A.slots[k]&&B.slots[k]&&A.slots[k].q>B.slots[k].q+1).length,wB=SL.filter(([k])=>A.slots[k]&&B.slots[k]&&B.slots[k].q>A.slots[k].q+1).length;
+    body=`<div class="card" style="margin-top:14px"><div class="cpair"><div><div class="ph"><div><h3>Pe scurt</h3></div></div><ul class="cverd">${teamVerdict(A,B).map(x=>`<li>${x}</li>`).join('')}</ul></div>
+      ${radarSvg([A,B],AX,'Percentilă față de toate cluburile cu stack complet. Formă = L5 față de L40, Siguranță = meciuri 50+, Plafon = meciuri 75+, Adâncime = jucători Strong+ care joacă, Valoare = prețul corect al stack-ului față de cel real.')}</div></div>
+      <div class="card" style="margin-top:14px"><div class="ph"><div><h3>Față în față, poziție cu poziție</h3><p>Cei 5 din stack-ul fiecărui club. Câștigă poziția cine are ${FORMA?'Q Formă':'Q Clasă'} mai mare cu peste 1 punct.</p></div>
+        <div class="legend"><span><i style="background:#4f46e5"></i>${esc(A.name)} ${wA}</span><span><i style="background:#f97316"></i>${esc(B.name)} ${wB}</span></div></div>
+        <div class="tl">${lineup}</div></div>
+      <div class="card" style="margin-top:14px"><div class="ctable"><div class="cr ch2"><div class="cv" style="grid-column:span 2;color:#4f46e5">${esc(A.name)}</div><div class="cl"></div><div class="cv r" style="grid-column:span 2;color:#ea580c">${esc(B.name)}</div></div>${cmpRowsHtml(R,A,B,capT)}</div>
+        <p class="note">Bara colorată = cine stă mai bine la rândul ăla. Stack-ul = cei 5 aleși în tab-ul Stack-uri (doar jucători care joacă acum). Lotul = toți jucătorii clubului din bază.</p></div>`;
+  } else body=`<div class="card" style="margin-top:14px"><div class="empty" style="border:0">Alege două echipe. Merge și între competiții diferite.</div></div>`;
+  root.innerHTML=cmpToggle()+`<div class="dgrid even">${slot('A',A)}${slot('B',B)}</div>${body}`;
+  bindCommon(root);
+  root.querySelectorAll('[data-ctset]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();const [k,name]=b.dataset.ctset.split(/:(.+)/);S['cmpT'+k]=name;S[k==='A'?'cmpQTA':'cmpQTB']='';saveUI();render();});
+  root.querySelectorAll('[data-ctclr]').forEach(b=>b.onclick=()=>{S['cmpT'+b.dataset.ctclr]=null;saveUI();render();});
 }
 
 // ================= Fisa jucatorului =================
