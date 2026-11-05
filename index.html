@@ -278,6 +278,7 @@
   .ex-v{margin:0 0 4px;font-size:13px}
   .ex-me{margin:0 0 10px;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
   .ex-row{display:grid;grid-template-columns:repeat(6,1fr);gap:4px}
+  .lu-ctl input.lu-rng{width:150px;accent-color:var(--accent)}
   .ex-b{display:flex;flex-direction:column;align-items:center;gap:3px;padding:5px 2px;border-radius:8px;font-size:11px;color:var(--muted);cursor:pointer}
   .ex-b:hover{background:var(--soft)} .ex-b.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
   .ex-i{font-size:11.5px;color:var(--muted);margin:0 0 6px}
@@ -1297,16 +1298,20 @@ function luFrontier(comp,cur,met){
   const f=luFront(all);LUC={k,f};return f;
 }
 const POSW={Defender:'Fundaș',Midfielder:'Mijlocaș',Forward:'Atacant'};
-function lineupCard(){
+// slider pe scara log: la bugete mici pasii sunt mici, la bugete mari mari
+const luRange=cur=>cur==='lim'?[10,1000]:[50,5000];
+const luFromPos=(cur,x)=>{const [a,b]=luRange(cur),v=a*Math.pow(b/a,x/1000);return v<100?Math.round(v):v<1000?Math.round(v/5)*5:Math.round(v/25)*25;};
+const luToPos=(cur,v)=>{const [a,b]=luRange(cur);return Math.round(Math.log(Math.min(b,Math.max(a,v))/a)/Math.log(b/a)*1000);};
+function lineupCard(budOverride){
   if(!HASL5)return '';
   const cur=S.luCur==='rare'?'rare':'lim',met=S.luMet==='l10'?'l10':'l5',cl=cur==='lim'?'Limited':'Rare',ML=met==='l5'?'L5':'L10';
   const bk=cur==='lim'?'luBudL':'luBudR',RMIN=cur==='lim'?10:50,RMAX=cur==='lim'?1000:5000;
-  let bud=+String(S[bk]).replace(',','.');if(!(bud>0)){bud=cur==='lim'?50:250;S[bk]=bud;}
+  let bud=budOverride!=null?budOverride:+String(S[bk]).replace(',','.');if(!(bud>0)){bud=cur==='lim'?50:250;S[bk]=bud;}
   const ctl=`<div class="fg"><span class="fl">Formă pe</span><span class="seg2"><button class="${met==='l5'?'on':''}" data-seg="luMet:l5">L5</button><button class="${met==='l10'?'on':''}" data-seg="luMet:l10">L10</button></span></div>
     <div class="fg"><span class="fl">Cost în</span><span class="seg2"><button class="${cur==='lim'?'on':''}" data-seg="luCur:lim">Limited</button><button class="${cur==='rare'?'on':''}" data-seg="luCur:rare">Rare</button></span></div>
     <label class="fg"><span class="fl">Buget €</span><input type="text" inputmode="decimal" data-k="${bk}" value="${esc(S[bk])}" class="lu-in"></label>
-    <input type="range" min="${RMIN}" max="${RMAX}" step="${cur==='lim'?5:25}" data-k="${bk}" value="${Math.min(RMAX,Math.max(RMIN,bud))}" aria-label="Buget">`;
-  const head=(title,sub)=>`<div class="ph"><div><h3>${title}</h3><p>${sub}</p></div><div class="lu-ctl">${ctl}</div></div>`;
+    <input type="range" class="lu-rng" min="0" max="1000" step="1" value="${luToPos(cur,bud)}" aria-label="Buget">`;
+  const head=(title,sub)=>`<div class="ph"><div><h3>${title}</h3><p id="luSub">${sub}</p></div><div class="lu-ctl">${ctl}</div></div>`;
   if(S.comp.size!==1)return `<div class="card lu">${head('Lineup în formă','Cel mai în formă GK, DEF, MID, FWD și Extra dintr-o ligă, care încap împreună în buget.')}<div class="empty" style="padding:22px">Alege o singură competiție din filtrul de sus ca să vezi lineup-ul în formă.</div></div>`;
   const comp=[...S.comp][0];
   const f=luFrontier(comp,cur,met);
@@ -1314,15 +1319,18 @@ function lineupCard(){
   const L=pick(bud);
   // ---- dreapta: pe cine pui pe Extra ----
   const OUT=['Defender','Midfielder','Forward'];
-  const FINE=cur==='lim'?[10,15,20,25,30,40,50,75,100,150,200,300]:[50,75,100,150,200,300,400,500,750,1000,1500,2000];
-  const SHOW=cur==='lim'?[10,20,30,50,100,250]:[50,100,150,250,500,1000];
+  const FINE=cur==='lim'?[10,15,20,25,30,40,50,75,100,150,200,250,300,400,500,750,1000]:[50,75,100,150,200,250,300,400,500,750,1000,1500,2000,3000,4000,5000];
+  const SHOW=cur==='lim'?[25,50,100,250,500,1000]:[100,250,500,1000,2500,5000];
   const segs=[];FINE.forEach(b=>{const x=pick(b);if(!x)return;const l=segs[segs.length-1];if(l&&l.pos===x.ex)l.to=b;else segs.push({pos:x.ex,from:b,to:b});});
-  const verdict=!segs.length?'':segs.length===1?`<b>${POSW[segs[0].pos]}</b>, la orice buget.`:segs.map((g,i)=>`<b>${i?POSW[g.pos].toLowerCase():POSW[g.pos]}</b> ${i===0?`până la €${g.to}`:i===segs.length-1?`de la €${g.from} în sus`:`între €${g.from} și €${g.to}`}`).join(', ')+'.';
+  // un singur buget cu alta pozitie intre doua bugete cu aceeasi pozitie = zgomot, il lipim de vecini
+  for(let i=1;i<segs.length-1;i++)if(segs[i].from===segs[i].to&&segs[i-1].pos===segs[i+1].pos){segs[i-1].to=segs[i+1].to;segs.splice(i,2);i--;}
+  const span=(g,i)=>i===0?`până la €${g.to}`:i===segs.length-1?`de la €${g.from} în sus`:g.from===g.to?`la €${g.from}`:`între €${g.from} și €${g.to}`;
+  const verdict=!segs.length?'':segs.length===1?`<b>${POSW[segs[0].pos]}</b>, la orice buget.`:segs.map((g,i)=>`<b>${i?POSW[g.pos].toLowerCase():POSW[g.pos]}</b> ${span(g,i)}`).join(', ')+'.';
   const pool=P.filter(p=>p.comp===comp&&p[cur]&&luScore(p,met)!=null);
-  const CAPS=cur==='lim'?[10,50]:[50,250];
-  const second=cap=>OUT.map(pos=>{const xs=pool.filter(p=>p.pos===pos&&p[cur]<=cap).sort((a,b)=>luScore(b,met)-luScore(a,met));return {pos,p:xs[1]||null};});
+  const CAPS=cur==='lim'?[10,50,null]:[50,250,null];
+  const second=cap=>OUT.map(pos=>{const xs=pool.filter(p=>p.pos===pos&&(cap==null||p[cur]<=cap)).sort((a,b)=>luScore(b,met)-luScore(a,met));return {pos,p:xs[1]||null};});
   const pic=cap=>{const xs=second(cap),vals=xs.filter(x=>x.p).map(x=>luScore(x.p,met)),mx=Math.max(...vals,1),mn=Math.min(40,...vals);
-    return `<div class="ex-pic"><div class="ex-h">Carduri până în €${cap}</div>${xs.map(x=>{const v=x.p?luScore(x.p,met):null,w=v===mx;
+    return `<div class="ex-pic"><div class="ex-h">${cap==null?'Fără limită de preț (buget mare)':`Carduri până în €${cap}${cap===CAPS[0]?' (buget mic)':' (buget mediu)'}`}</div>${xs.map(x=>{const v=x.p?luScore(x.p,met):null,w=v===mx;
       return `<div class="ex-r ${w?'w':''}" ${x.p?`data-open="${x.p.id}"`:''}>${ptag(x.pos)}<div class="t"><i style="width:${v==null?0:Math.max(4,(v-mn)/(mx-mn||1)*100)}%;background:var(--p${POSS[x.pos]})"></i></div><b class="num">${v??'–'}</b><span class="nm">${x.p?esc(x.p.n)+' '+eur(x.p[cur]):'prea puțini'}</span></div>`;}).join('')}</div>`;};
   const side=`<div class="ex"><h4>Pe cine pui pe Extra</h4>
     <p class="ex-v">${verdict||'Prea puțini jucători cu preț.'}</p>
@@ -1331,11 +1339,11 @@ function lineupCard(){
     <div class="g-h" style="margin:14px 0 2px">De ce</div>
     <p class="ex-i">Primul de pe fiecare poziție ocupă slotul fix, deci pe Extra ajunge al doilea. Cât face ${ML} al doilea cel mai bun pe care ți-l permiți:</p>
     ${CAPS.map(pic).join('')}</div>`;
-  if(!L)return `<div class="card lu">${head('Lineup în formă · '+esc(comp),'Cel mai în formă GK, DEF, MID, FWD și Extra din ligă, care încap împreună în buget.')}<div class="lu-g"><div class="empty" style="padding:22px">${f.length?`Nu încape niciun lineup sub €${bud}. Cel mai ieftin costă ${eur(f[0].c)}.`:`Prea puțini jucători cu preț ${cl} și minim ${LU_MIN}′ în ultimele 5.`}</div>${side}</div></div>`;
+  if(!L)return `<div class="card lu">${head('Lineup în formă · '+esc(comp),'Cel mai în formă GK, DEF, MID, FWD și Extra din ligă, care încap împreună în buget.')}<div class="lu-g" id="luBody"><div class="empty" style="padding:22px">${f.length?`Nu încape niciun lineup sub €${bud}. Cel mai ieftin costă ${eur(f[0].c)}.`:`Prea puțini jucători cu preț ${cl} și minim ${LU_MIN}′ în ultimele 5.`}</div>${side}</div></div>`;
   // ordinea ca la Stack-uri: GK, DEF, MID, FWD; Extra sta langa cei de pe pozitia lui
   const rows=L.ids.map(id=>P[id]).sort((a,b)=>POSORD.indexOf(a.pos)-POSORD.indexOf(b.pos)||luScore(b,met)-luScore(a,met));
   return `<div class="card lu">${head(`Lineup în formă · ${esc(comp)}`,`${ML} total <b style="color:var(--ink)">${L.v.toFixed(0)}</b> · ${ML} medie ${(L.v/5).toFixed(1)} · ${cl} ${eur(L.c)} din €${bud}`)}
-    <div class="lu-g"><div>
+    <div class="lu-g" id="luBody"><div>
     <div class="dt-wrap"><table class="dt"><thead><tr><th></th><th>Jucător</th><th>Status</th><th class="r">${ML}</th><th class="r">${met==='l5'?'L10':'L5'}</th><th class="r" title="Minute jucate în ultimele 5 meciuri, din 450">Min L5</th><th>Tier</th><th>Badge</th><th class="r">${cl}</th><th>Semnal</th></tr></thead><tbody>
     ${rows.map(p=>`<tr class="rw" data-open="${p.id}"><td>${ptag(p.pos)}</td><td><div class="pn">${esc(p.n)}</div><div class="pc2">${esc(p.club)}</div></td><td>${stag(p)}</td><td class="r"><b>${met==='l5'?p.l5:p.l10}</b></td><td class="r">${met==='l5'?p.l10:(p.l5??'–')}</td><td class="r">${Math.round(p.m5*5)}′</td><td>${p.tier?ttag(p.tier):tierCell(p,null)}</td><td>${btag(p.badge)}</td><td class="r">${eur(p[cur])}</td><td>${tag(cur==='lim'?p.ls:p.rs)}</td></tr>`).join('')}
     </tbody></table></div>
@@ -1426,7 +1434,15 @@ function vTargets(root){
     </div>
     ${marketMap()}
   </div>`;
-  bindCommon(root);
+  bindCommon(root);bindLineup(root);
+}
+function bindLineup(root){
+  const r=root.querySelector('.lu-rng');if(!r)return;
+  const cur=S.luCur==='rare'?'rare':'lim',bk=cur==='lim'?'luBudL':'luBudR',txt=root.querySelector('.lu-in');let raf=0;
+  r.addEventListener('input',()=>{const v=luFromPos(cur,+r.value);if(txt)txt.value=v;cancelAnimationFrame(raf);raf=requestAnimationFrame(()=>{
+    const t=document.createElement('div');t.innerHTML=lineupCard(v);
+    for(const id of ['luSub','luBody']){const a=root.querySelector('#'+id),b=t.querySelector('#'+id);if(a&&b)a.innerHTML=b.innerHTML;}});});
+  r.addEventListener('change',()=>{S[bk]=luFromPos(cur,+r.value);render();});
 }
 
 // ================= TAB 3: Badge-uri =================
