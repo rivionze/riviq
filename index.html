@@ -268,24 +268,8 @@
   .cslot .cs-h{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
   .cslot .pn[data-open]{cursor:pointer} .cslot .pn[data-open]:hover{color:var(--accent)}
   .card.lu{margin-bottom:14px}
-  .lu-ctl{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;margin:4px 0 14px}
-  .lu-ctl select{border:1px solid var(--line);border-radius:8px;padding:5px 8px;font:inherit;font-size:12.5px;background:#fff}
-  .lu-g{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(0,1fr);gap:22px;align-items:start}
-  @media (max-width:900px){.lu-g{grid-template-columns:1fr}}
-  .lu-sum{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
-  .lu-sum div{background:var(--accent-soft);border-radius:10px;padding:8px 12px}
-  .lu-sum span{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--accent);font-weight:700}
-  .lu-sum b{font-size:24px;letter-spacing:-.5px;font-variant-numeric:tabular-nums} .lu-sum small{display:block;font-size:11.5px;color:var(--muted)}
-  .lu-l{display:flex;flex-direction:column;gap:6px}
-  .lu-p{display:grid;grid-template-columns:44px minmax(0,1fr) 54px 60px 66px 190px;gap:10px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:8px 10px;cursor:pointer;background:#fff}
-  .lu-p:hover{border-color:#c9ccfb;background:#fbfbff}
-  .lu-st{text-align:right;line-height:1.15} .lu-st b{font-size:14px;font-variant-numeric:tabular-nums;display:block} .lu-st span{font-size:10.5px;color:var(--muted)}
-  .lu-tg{display:flex;gap:4px;justify-content:flex-end;flex-wrap:wrap}
-  @media (max-width:640px){.lu-p{grid-template-columns:40px minmax(0,1fr) 44px 56px}.lu-p .lu-st:nth-of-type(4),.lu-tg{display:none}}
-  .lu-b{display:grid;grid-template-columns:54px 1fr 34px;gap:8px;align-items:center;font-size:12.5px;padding:5px 6px;border-radius:8px;cursor:pointer}
-  .lu-b:hover{background:var(--soft)} .lu-b.on{background:var(--accent-soft)}
-  .lu-b .t{height:10px;background:var(--soft);border-radius:4px;overflow:hidden} .lu-b .t i{display:block;height:100%;background:var(--accent);border-radius:4px}
-  .lu-b b{text-align:right;font-variant-numeric:tabular-nums}
+  .lu-ctl{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center}
+  .lu-ctl input[type=range]{width:130px}
   .tl{display:flex;flex-direction:column;gap:6px}
   .tl-r{display:grid;grid-template-columns:minmax(0,1fr) 56px minmax(0,1fr);gap:8px;align-items:stretch}
   .tl-m{display:flex;align-items:center;justify-content:center}
@@ -1098,7 +1082,7 @@ const S={page:'players',comp:new Set(),pos:new Set(),
   rrQ:'',rrSel:null,
   mapComp:'',
   cmpA:null,cmpB:null,cmpQA:'',cmpQB:'',cmpMode:'players',cmpTA:null,cmpTB:null,cmpQTA:'',cmpQTB:'',
-  nwPrice:'lim',luComp:'',luCur:'lim',luMet:'l5',luBud:'',
+  nwPrice:'lim',luCur:'lim',luMet:'l5',luBudL:50,luBudR:250,
   sel:null};
 try{const o=JSON.parse(localStorage.getItem('riviq-scout-ui')||'{}');if(o.page)S.page=o.page;if(o.cmpA)S.cmpA=o.cmpA;if(o.cmpB)S.cmpB=o.cmpB;if(o.cmpTA)S.cmpTA=o.cmpTA;if(o.cmpTB)S.cmpTB=o.cmpTB;if(o.cmpMode)S.cmpMode=o.cmpMode;}catch(e){}
 if(S.page==='tool'&&!window.RQ_admin)S.page='players';
@@ -1263,6 +1247,62 @@ function vPlayers(root){
   root.querySelector('#clr').onclick=()=>{Object.assign(S,{q:'',tier:'Toți',badge:'',form:'',ls:'',ru:'',limMax:'',rareMax:'',stack:false,limit:150});S.comp.clear();S.pos.clear();S.status=new Set(['Titular','Rotatie','Rezerva']);render();};
 }
 
+// ================= Lineup in forma pe liga =================
+// GK + DEF + MID + FWD + EX (orice jucator de camp), din toata liga, cea mai mare forma totala care incape in buget.
+// Intra doar cine are minim 300 de minute in ultimele 5 meciuri; scorul e nota L5 (sau L10).
+const LU_MIN=300;
+function luScore(p,met){
+  if(!((p.m5||0)*5>=LU_MIN))return null;
+  const v=met==='l10'?p.l10:p.l5;return v!=null&&v>0?v:null;
+}
+const luFront=xs=>{const s=[...xs].sort((a,b)=>a.c-b.c||b.v-a.v),o=[];let best=-1;for(const x of s)if(x.v>best+1e-9){o.push(x);best=x.v;}return o;};
+function luMerge(A,B,max){const o=[];for(const a of A)for(const b of B){const c=a.c+b.c;if(c<=max)o.push({c,v:a.v+b.v,ids:a.ids.concat(b.ids)});}return luFront(o);}
+function luPairs(xs,max){ // doua carduri pe aceeasi pozitie: intr-un optim, fiecare e dominat de cel mult un alt card
+  const c2=xs.filter(x=>xs.filter(y=>y!==x&&y.c<=x.c&&y.v>=x.v&&(y.c<x.c||y.v>x.v)).length<=1);
+  const o=[];for(let i=0;i<c2.length;i++)for(let j=i+1;j<c2.length;j++){const c=c2[i].c+c2[j].c;if(c<=max)o.push({c,v:c2[i].v+c2[j].v,ids:c2[i].ids.concat(c2[j].ids)});}
+  return luFront(o);
+}
+let LUC={k:null,f:null};
+function luFrontier(comp,cur,met){
+  const k=[comp,cur,met,P.length].join('|');if(LUC.k===k)return LUC.f;
+  const MAX=cur==='lim'?3000:15000;
+  const it={};POSORD.forEach(pos=>it[pos]=[]);
+  P.forEach(p=>{if(p.comp!==comp||!p[cur])return;const v=luScore(p,met);if(v==null)return;it[p.pos].push({c:p[cur],v,ids:[p.id]});});
+  const one={},two={};POSORD.forEach(pos=>{one[pos]=luFront(it[pos]);});
+  ['Defender','Midfielder','Forward'].forEach(pos=>two[pos]=luPairs(it[pos],MAX));
+  let all=[];
+  for(const ex of ['Defender','Midfielder','Forward']){
+    let f=one.Goalkeeper;
+    for(const pos of ['Defender','Midfielder','Forward'])f=luMerge(f,pos===ex?two[pos]:one[pos],MAX);
+    all=all.concat(f.map(x=>Object.assign({},x,{ex})));
+  }
+  const f=luFront(all);LUC={k,f};return f;
+}
+function lineupCard(){
+  if(!HASL5)return '';
+  const cur=S.luCur==='rare'?'rare':'lim',met=S.luMet==='l10'?'l10':'l5',cl=cur==='lim'?'Limited':'Rare',ML=met==='l5'?'L5':'L10';
+  const bk=cur==='lim'?'luBudL':'luBudR';let bud=+S[bk];if(cur==='lim'&&!(bud>=10&&bud<=1000))bud=50;if(cur==='rare'&&!(bud>=50&&bud<=5000))bud=250;S[bk]=bud;
+  const ctl=`<div class="fg"><span class="fl">Formă pe</span><span class="seg2"><button class="${met==='l5'?'on':''}" data-seg="luMet:l5">L5</button><button class="${met==='l10'?'on':''}" data-seg="luMet:l10">L10</button></span></div>
+    <div class="fg"><span class="fl">Cost în</span><span class="seg2"><button class="${cur==='lim'?'on':''}" data-seg="luCur:lim">Limited</button><button class="${cur==='rare'?'on':''}" data-seg="luCur:rare">Rare</button></span></div>
+    <label class="fg"><span class="fl">Buget</span><input type="range" min="${cur==='lim'?10:50}" max="${cur==='lim'?1000:5000}" step="${cur==='lim'?5:25}" data-k="${bk}" data-pre="€" value="${bud}"><span class="num rv">€${bud}</span></label>`;
+  const head=(title,sub)=>`<div class="ph"><div><h3>${title}</h3><p>${sub}</p></div><div class="lu-ctl">${ctl}</div></div>`;
+  if(S.comp.size!==1)return `<div class="card lu">${head('Lineup în formă','Cel mai în formă GK, DEF, MID, FWD și Extra dintr-o ligă, care încap împreună în buget.')}<div class="empty" style="padding:22px">Alege o singură competiție din filtrul de sus ca să vezi lineup-ul în formă.</div></div>`;
+  const comp=[...S.comp][0];
+  const f=luFrontier(comp,cur,met);
+  const pick=b=>{let r=null;for(const x of f){if(x.c<=b)r=x;else break;}return r;};
+  const L=pick(bud);
+  if(!L)return `<div class="card lu">${head('Lineup în formă · '+esc(comp),'Cel mai în formă GK, DEF, MID, FWD și Extra din ligă, care încap împreună în buget.')}<div class="empty" style="padding:22px">${f.length?`Nu încape niciun lineup sub €${bud}. Cel mai ieftin costă ${eur(f[0].c)}.`:`Prea puțini jucători cu preț ${cl} și minim ${LU_MIN}′ în ultimele 5.`}</div></div>`;
+  const ps=L.ids.map(id=>P[id]).sort((a,b)=>POSORD.indexOf(a.pos)-POSORD.indexOf(b.pos)||luScore(b,met)-luScore(a,met));
+  const exP=ps.filter(p=>p.pos===L.ex)[1];   // al doilea pe pozitia dubla = Extra
+  const rows=ps.filter(p=>p!==exP).concat([exP]);
+  const steps=(cur==='lim'?[10,25,50,100,250]:[50,100,250,500,1000]).map(b=>({b,x:pick(b)})).filter(s=>s.x);
+  return `<div class="card lu">${head(`Lineup în formă · ${esc(comp)}`,`${ML} total <b style="color:var(--ink)">${L.v.toFixed(0)}</b> · ${ML} medie ${(L.v/5).toFixed(1)} · ${cl} ${eur(L.c)} din €${bud}`)}
+    <div class="dt-wrap"><table class="dt"><thead><tr><th></th><th>Jucător</th><th>Status</th><th class="r">${ML}</th><th class="r">${met==='l5'?'L10':'L5'}</th><th class="r" title="Minute jucate în ultimele 5 meciuri, din 450">Min L5</th><th>Tier</th><th>Badge</th><th class="r">${cl}</th><th>Semnal</th></tr></thead><tbody>
+    ${rows.map(p=>`<tr class="rw" data-open="${p.id}"><td>${p===exP?'<span class="pos" style="background:#94a3b8">EX</span>':ptag(p.pos)}</td><td><div class="pn">${esc(p.n)}</div><div class="pc2">${esc(p.club)}</div></td><td>${stag(p)}</td><td class="r"><b>${met==='l5'?p.l5:p.l10}</b></td><td class="r">${met==='l5'?p.l10:(p.l5??'–')}</td><td class="r">${Math.round(p.m5*5)}′</td><td>${p.tier?ttag(p.tier):tierCell(p,null)}</td><td>${btag(p.badge)}</td><td class="r">${eur(p[cur])}</td><td>${tag(cur==='lim'?p.ls:p.rs)}</td></tr>`).join('')}
+    </tbody></table></div>
+    <p class="note">Doar jucători cu minim ${LU_MIN}′ în ultimele 5 meciuri. Ales doar după ${ML}, fără L40 sau Q Score. Extra poate fi orice jucător de câmp. ${ML} total pe buget ${cl}: ${steps.map(s=>`<span style="${s.b===bud?'color:var(--ink);font-weight:600':''}">€${s.b} → ${s.x.v.toFixed(0)}</span>`).join(' · ')}</p></div>`;
+}
+
 // ================= TAB 2: Tinte =================
 const TBANDS=[[0,5,'Sub €5'],[5,15,'€5 – €15'],[15,40,'€15 – €40'],[40,100,'€40 – €100']];
 function promise(p){ // la ce te astepti de la el, pe cifrele lui
@@ -1335,6 +1375,7 @@ function vTargets(root){
     ${sel('tgTier',['Best in Class','Elite','Strong','Good','Toți'].map(t=>[t,t==='Toți'?'Toți':t+(t==='Best in Class'?'':'+')]),'Tier')}
     ${sel('tgBadge',BADGE_OPTS(),'Badge')}
   </div>
+  ${lineupCard()}
   <div class="card" style="margin-bottom:14px;padding:14px 18px"><div class="ph" style="margin:0"><div><h3>Cele mai bune ținte pe fiecare buget</h3>
     <p>Fiecare coloană e un buget. Primul card e cea mai bună țintă din bugetul ăla. Sub fiecare nume scrie de ce e acolo: cât de bun e, dacă joacă, cât costă față de alții ca el și ce tip de card e. Scoatem din start cardurile prea scumpe pentru ce produc, pe cei în cădere de formă și pe cei care nu joacă.</p></div></div>
     <details style="margin-top:10px"><summary>Cum se calculează ordinea</summary><p class="note" style="max-width:80ch">Scor țintă = ${FORMA?'Q Formă':'Q Clasă'} + reducerea față de prețul corect (până la ±10 puncte) + bonus de badge (Complet 6, Sigur și Exploziv 4, Cazino 1, plus 3 pentru variantele cu plus și Prime)${FORMA?'':' + formă pe L5 (Surging +3, Up +1.5, Down −1.5)'}. Tier-ul, badge-urile și prețul corect sunt mereu pe Clasă.</p></details></div>
@@ -1383,85 +1424,6 @@ function vBadges(root){
   bindCommon(root);bindDots(root);
 }
 
-// ================= Lineup in forma pe liga =================
-// GK + DEF + MID + FWD + EX (orice jucator de camp), din toata liga, cel mai mare scor de forma care incape in buget.
-// Scor = L5 (sau L10) x creditul de minute din ultimele 5 meciuri: cine n-a jucat recent nu intra in calcul.
-function luScore(p,met){
-  if(!(p.m5>0))return null;
-  const full=((window.RQ_cfg&&window.RQ_cfg().status&&window.RQ_cfg().status.fullGames)||3)*18;
-  const v=met==='l10'?p.l10:p.l5;if(v==null||!(v>0))return null;
-  return v*Math.min(1,p.m5/full);
-}
-const luFront=xs=>{const s=[...xs].sort((a,b)=>a.c-b.c||b.v-a.v),o=[];let best=-1;for(const x of s)if(x.v>best+1e-9){o.push(x);best=x.v;}return o;};
-function luMerge(A,B,max){const o=[];for(const a of A)for(const b of B){const c=a.c+b.c;if(c<=max)o.push({c,v:a.v+b.v,ids:a.ids.concat(b.ids)});}return luFront(o);}
-function luPairs(xs,max){ // doua carduri pe aceeasi pozitie: intr-un optim, fiecare e dominat de cel mult un alt card
-  const c2=xs.filter(x=>xs.filter(y=>y!==x&&y.c<=x.c&&y.v>=x.v&&(y.c<x.c||y.v>x.v)).length<=1);
-  const o=[];for(let i=0;i<c2.length;i++)for(let j=i+1;j<c2.length;j++){const c=c2[i].c+c2[j].c;if(c<=max)o.push({c,v:c2[i].v+c2[j].v,ids:c2[i].ids.concat(c2[j].ids)});}
-  return luFront(o);
-}
-let LUC={k:null,f:null};
-function luFrontier(comp,cur,met){
-  const k=[comp,cur,met,P.length,FORMA].join('|');if(LUC.k===k)return LUC.f;
-  const MAX=cur==='lim'?3000:15000;
-  const it={};POSORD.forEach(pos=>it[pos]=[]);
-  P.forEach(p=>{if(p.comp!==comp||!p[cur])return;if(HASL5&&p.status==='Nu joaca')return;const v=luScore(p,met);if(v==null)return;it[p.pos].push({c:p[cur],v,ids:[p.id]});});
-  const one={},two={};POSORD.forEach(pos=>{one[pos]=luFront(it[pos]);});
-  ['Defender','Midfielder','Forward'].forEach(pos=>two[pos]=luPairs(it[pos],MAX));
-  let all=[];
-  for(const ex of ['Defender','Midfielder','Forward']){
-    let f=one.Goalkeeper;
-    for(const pos of ['Defender','Midfielder','Forward'])f=luMerge(f,pos===ex?two[pos]:one[pos],MAX);
-    all=all.concat(f.map(x=>Object.assign({},x,{ex})));
-  }
-  const f=luFront(all);LUC={k,f};return f;
-}
-function lineupCard(){
-  if(!HASL5)return '';
-  const comp=COMPS.includes(S.luComp)?S.luComp:(S.comp.size===1?[...S.comp][0]:COMPS.includes('La Liga')?'La Liga':COMPS[0]);
-  const cur=S.luCur==='rare'?'rare':'lim',met=S.luMet==='l10'?'l10':'l5',cl=cur==='lim'?'Limited':'Rare';
-  const PRE=cur==='lim'?[10,25,50,100,250]:[50,100,250,500,1000];
-  let bud=+String(S.luBud||'').replace(',','.');if(!(bud>0))bud=cur==='lim'?50:250;
-  const f=luFrontier(comp,cur,met);
-  const pick=b=>{let r=null;for(const x of f){if(x.c<=b)r=x;else break;}return r;};
-  const L=pick(bud);
-  const head=`<div class="ph"><div><h3>Lineup în formă · ${esc(comp)}</h3><p>Cel mai bun portar, fundaș, mijlocaș, atacant și un Extra (orice jucător de câmp), de la orice club din competiție, care încap împreună în buget. Ales doar după ${met==='l5'?'L5':'L10'} și minutele din ultimele 5 meciuri.</p></div></div>
-    <div class="lu-ctl">
-      <label class="fg"><span class="fl">Competiție</span><select data-k="luComp">${COMPS.map(c=>`<option ${c===comp?'selected':''}>${esc(c)}</option>`).join('')}</select></label>
-      <div class="fg"><span class="fl">Formă pe</span><span class="seg2"><button class="${met==='l5'?'on':''}" data-seg="luMet:l5">L5</button><button class="${met==='l10'?'on':''}" data-seg="luMet:l10">L10</button></span></div>
-      <div class="fg"><span class="fl">Cărți</span><span class="seg2"><button class="${cur==='lim'?'on':''}" data-seg="luCur:lim">Limited</button><button class="${cur==='rare'?'on':''}" data-seg="luCur:rare">Rare</button></span></div>
-      <div class="fg"><span class="fl">Buget</span>${PRE.map(v=>`<button class="fc ${bud===v?'on':''}" data-seg="luBud:${v}">€${v}</button>`).join('')}<label class="fg"><span class="fl" style="margin-left:6px">sau €</span><input type="text" inputmode="decimal" data-k="luBud" value="${esc(S.luBud||bud)}" style="width:70px;border:1px solid var(--line);border-radius:8px;padding:5px 8px;font:inherit;font-size:12.5px"></label></div>
-    </div>`;
-  if(!L)return `<div class="card lu">${head}<div class="empty">${f.length?`Nu încape niciun lineup sub €${bud}. Cel mai ieftin costă ${eur(f[0].c)}.`:'Prea puțini jucători cu preț și minute în L5.'}</div></div>`;
-  const ps=L.ids.map(id=>P[id]);
-  const order=[...ps].sort((a,b)=>POSORD.indexOf(a.pos)-POSORD.indexOf(b.pos)||luScore(b,met)-luScore(a,met));
-  const exP=order.filter(p=>p.pos===L.ex)[1];   // al doilea pe pozitia dubla = Extra
-  const rows=order.filter(p=>p!==exP).concat([exP]);
-  const cardP=p=>{const sc=luScore(p,met),ex=p===exP;return `<div class="lu-p" data-open="${p.id}">
-      <div class="lu-pos">${ex?'<span class="pos" style="background:#94a3b8">EX</span>':ptag(p.pos)}</div>
-      <div class="lu-nm"><div class="pn">${esc(p.n)}</div><div class="pc2" style="max-width:none">${esc(p.club)}</div></div>
-      <div class="lu-st"><b>${met==='l5'?p.l5:p.l10}</b><span>${met==='l5'?'L5':'L10'}</span></div>
-      <div class="lu-st"><b>${Math.round(p.m5*5)}′</b><span>din 450</span></div>
-      <div class="lu-st"><b>${eur(p[cur])}</b><span>${cl}</span></div>
-      <div class="lu-tg">${btag(p.badge)}${tag(p.form)}</div></div>`;};
-  // ce iti da fiecare buget + ce castigi cu un pas mai sus
-  const nxt=f.find(x=>x.c>L.c&&x.v>=L.v+5);
-  const steps=PRE.map(b=>({b,x:pick(b)})).filter(s=>s.x);
-  const mx=Math.max(...steps.map(s=>s.x.v),L.v);
-  const used=L.c,left=bud-used;
-  return `<div class="card lu">${head}
-    <div class="lu-g">
-      <div>
-        <div class="lu-sum"><div><span>Formă totală</span><b>${L.v.toFixed(0)}</b><small>${(L.v/5).toFixed(1)} în medie pe card</small></div><div><span>Cost</span><b>${eur(used)}</b><small>${left>=0.01?`îți rămân ${eur(left)}`:'tot bugetul'}</small></div></div>
-        <div class="lu-l">${rows.map(cardP).join('')}</div>
-        ${nxt?`<p class="note" style="margin-top:8px">Următorul pas: la ${eur(nxt.c)} (cu ${eur(nxt.c-bud)} peste buget) lineup-ul face +${(nxt.v-L.v).toFixed(0)} puncte de formă.</p>`:''}
-      </div>
-      <div><div class="g-h" style="margin-bottom:6px">Cât îți dă fiecare buget</div>
-        ${steps.map(s=>`<div class="lu-b ${s.b===bud?'on':''}" data-seg="luBud:${s.b}"><span>€${s.b}</span><div class="t"><i style="width:${s.x.v/mx*100}%"></i></div><b>${s.x.v.toFixed(0)}</b></div>`).join('')}
-        <p class="note">Formă = ${met==='l5'?'nota L5':'nota L10'} × creditul de minute din ultimele 5 (credit plin de la 3 meciuri întregi). Cine nu a jucat în ultimele 5 nu intră. Nu se uită la L40 sau la Q Score, doar la ce fac acum.</p>
-      </div>
-    </div></div>`;
-}
-
 // ================= TAB 4: Stack-uri =================
 function vStacks(root){
   const cur=S.stCur,met=S.stMet==='l5'&&!HASL5?'l10':S.stMet,ml=met==='l5'?'L5 medie':met==='l10'?'L10 medie':'Q mediu',msh=met==='l5'?'L5':met==='l10'?'L10':'Q',cl=cur==='lim'?'Limited':'Rare';
@@ -1492,7 +1454,6 @@ function vStacks(root){
     <div class="fg"><span class="fl">Metrică</span><span class="seg2">${HASL5?`<button class="${met==='l5'?'on':''}" data-seg="stMet:l5">L5</button>`:''}<button class="${met==='l10'?'on':''}" data-seg="stMet:l10">L10</button><button class="${met==='q'?'on':''}" data-seg="stMet:q">Q Score</button></span></div>
     <label class="fg"><span class="fl">Buget stack</span><input type="range" min="${cur==='lim'?20:100}" max="${cur==='lim'?1000:5000}" step="${cur==='lim'?10:50}" data-k="stBud" data-pre="€" value="${SB}"><span class="num rv">€${SB}</span></label>
   </div>
-  ${lineupCard()}
   <div class="kpis">
     <div class="kpi"><div class="l">Stack-uri complete</div><div class="v">${st.length}</div><div class="s">GK + DEF + MID + FWD + EX, toate cu preț ${cl}</div></div>
     <div class="kpi"><div class="l">Cel mai bun sub €${SB}</div><div class="v sm">${ranked[0]?esc(ranked[0].club):'–'}</div><div class="s">${ranked[0]?`${ml} ${ranked[0][met].toFixed(1)} · ${eur(ranked[0].cost)}`:''}</div></div>
