@@ -562,11 +562,11 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
       upgTiers: ["Best in Class", "Elite", "Strong"],
       upgIdx: 60,                // Upgrade: diferenta <= 60% din cea tipica
       upgSave: 5,                // ... si economie >= 5 EUR fata de diferenta tipica
-      upgAgeMax: 32,
+      upgAgeFrom: 30,            // de la varsta asta, pragul de Upgrade si Lux se strange putin
+      upgAgeStep: 3,             // ... cu 3 puncte procentuale pe fiecare an peste
       luxTiers: ["Best in Class", "Elite"],
       luxIdx: 110,               // Lux: diferenta pana la 110% din cea tipica (pret corect, nu neaparat ieftin)
       luxMinRare: 40, luxMaxRare: 600,
-      luxAgeMax: 29,             // Rare-ul scump trebuie sa-si tina valoarea si la anul
       limIdx: 150,               // peste 150% din diferenta tipica: Rare-ul e umflat, ramai pe Limited
     },
   };
@@ -853,11 +853,14 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
       const why = !r["Tier Liga"] ? "notier" : !tiers.has(r["Tier Liga"]) ? "tier"
         : hasL5 && r.Status !== "Titular" ? "status"
         : r["Form Trend"] === "Dropping" ? "form"
-        : r.Age != null && r.Age > P.upgAgeMax ? "age" : null;
+        : null;
       if (why) { r._upgV = "no"; r._upgWhy = why; continue; }
+      // varsta: un mic handicap la pret, nu o bariera. Pretul decide.
+      const agePen = r.Age != null && P.upgAgeFrom != null ? Math.max(0, r.Age - P.upgAgeFrom) * (P.upgAgeStep || 0) : 0;
+      r._upgAgePen = agePen;
       if (idx > P.limIdx || (r["Rare Signal"] || "").startsWith("Overpriced")) { r._upgV = "limited"; continue; }
-      if (idx <= P.upgIdx && r._upgSave >= P.upgSave && r[RAR] <= P.upgMaxRare) { r._upgV = "upg"; r["Rare Upgrade"] = "Upgrade"; continue; }
-      if (lux.has(r["Tier Liga"]) && idx <= P.luxIdx && r[RAR] >= P.luxMinRare && r[RAR] <= P.luxMaxRare && !(r.Age != null && r.Age > P.luxAgeMax)) { r._upgV = "lux"; r["Rare Upgrade"] = "Lux"; continue; }
+      if (idx <= P.upgIdx - agePen && r._upgSave >= P.upgSave && r[RAR] <= P.upgMaxRare) { r._upgV = "upg"; r["Rare Upgrade"] = "Upgrade"; continue; }
+      if (lux.has(r["Tier Liga"]) && idx <= P.luxIdx - agePen && r[RAR] >= P.luxMinRare && r[RAR] <= P.luxMaxRare) { r._upgV = "lux"; r["Rare Upgrade"] = "Lux"; continue; }
       r._upgV = "normal";
     }
   }
@@ -1115,7 +1118,7 @@ function toP(out){
     lim:r[LIMC]>0?r[LIMC]:null,rare:r[RARC]>0?r[RARC]:null,pl:r["Percentil Liga"],tier:r["Tier Liga"],pp:r["Percentil Pozitie"],tpos:r["Tier Pozitie"],
     stack:(FORMA?r["Stack Forma"]:r.Stack)==="Yes",badge:r.Badge,bbase:r._bbase,bplus:!!r._bplus,fam:r._fam,p50:r._p50,p60:r._p60,p75:r._p75,low:r._low,aap:r._aap,decp:r._decp,form:r["Form Trend"],ls:r["Limited Signal"],rs:r["Rare Signal"],ru:r["Rare Upgrade"],
     fl:r._fairL>0?r._fairL:null,fr:r._fairR>0?r._fairR:null,save:r._upgSave,fd:r._form,
-    upgV:r._upgV,upgWhy:r._upgWhy,upgTyp:r._upgTyp,upgDiff:r._upgDiff,upgIdx:r._upgIdx,
+    upgV:r._upgV,upgWhy:r._upgWhy,upgAge:r._upgAgePen||0,upgTyp:r._upgTyp,upgDiff:r._upgDiff,upgIdx:r._upgIdx,
     l5:r.L5,gs5:r['L5 Games Started']||0,m5:r['L5 Min Play/90']||0,gp5:r['L5 Games Played'],status:r.Status,newSt:r['Titular nou']==='Yes',base:!!r._base,noTier:r._noTier}));
 }
 function tscore(p){ // scor tinta: calitate + valoare + badge + forma
@@ -1557,13 +1560,13 @@ function upgText(p){
   const C=PC(),d=eur(p.upgDiff),t=eur(p.upgTyp),age=p.age!=null?`${p.age} ani`:'';
   const who=`${p.tier||'Fără Tier'} în ${p.comp}${p.status?', '+STN[p.status].toLowerCase():''}${age?', '+age:''}`;
   switch(p.upgV){
-    case 'upg':return `Rare costă doar ${d} peste Limited. La carduri de prețul lui diferența e de obicei ${t}, deci economisești ${eur(p.save)}. ${who}.`;
-    case 'lux':return `Jucător de top: ${who}. Rare-ul costă ${d} peste Limited, aproape de diferența normală (${t}). Nu e chilipir, dar e un preț corect pentru un card pe care îl poți ține și la anul.`;
+    case 'upg':return `Rare costă doar ${d} peste Limited. La carduri de prețul lui diferența e de obicei ${t}, deci economisești ${eur(p.save)}. ${who}.${p.upgAge>0?` Are ${p.age} ani, dar diferența e destul de mică încât să merite.`:''}`;
+    case 'lux':return `Jucător de top: ${who}. Rare-ul costă ${d} peste Limited, aproape de diferența normală (${t}). Nu e chilipir, dar e un preț corect.${p.upgAge>0?` La ${p.age} ani, gândește-te că îl folosești mai ales sezonul ăsta.`:' Un card pe care îl poți ține și la anul.'}`;
     case 'limited':return (p.rs||'').startsWith('Overpriced')?`Rare-ul e scump și față de jucătorii de calibrul lui (${eur(p.rare)}, corect ${eur(p.fr)}). Ia Limited.`:`Rare-ul e umflat: costă ${d} peste Limited, față de ${t} de obicei la prețul ăsta. Ia Limited.`;
-    case 'no':return {tier:`Nivelul lui (${p.tier}) nu justifică bani în plus pe Rare. Upgrade doar pentru ${(C.upgTiers||[]).join(', ')}.`,notier:`Fără Tier acum${p.noTier?' ('+p.noTier+')':''}, deci nu merită bani în plus pe Rare.`,status:`Nu e titular acum (${STN[p.status]||'?'} în ultimele 5). Un Rare se plătește pentru meciuri jucate.`,form:`E în cădere de formă (L5 ${p.l5} față de L40 ${p.l40}). Așteaptă să-și revină.`,age:`Are ${p.age} ani. Un Rare plătit în plus își pierde valoarea repede, la anul s-ar putea să nu mai valoreze mult.`}[p.upgWhy]||'Nu merită acum.';
+    case 'no':return {tier:`Nivelul lui (${p.tier}) nu justifică bani în plus pe Rare. Upgrade doar pentru ${(C.upgTiers||[]).join(', ')}.`,notier:`Fără Tier acum${p.noTier?' ('+p.noTier+')':''}, deci nu merită bani în plus pe Rare.`,status:`Nu e titular acum (${STN[p.status]||'?'} în ultimele 5). Un Rare se plătește pentru meciuri jucate.`,form:`E în cădere de formă (L5 ${p.l5} față de L40 ${p.l40}). Așteaptă să-și revină.`}[p.upgWhy]||'Nu merită acum.';
     default:{
       let x=`Diferența (${d}) e cam cea obișnuită la prețul lui (${t}). Fără chilipir: iei Rare doar dacă îl vrei pentru Arena.`;
-      if((C.luxTiers||[]).includes(p.tier)&&p.age>C.luxAgeMax)x+=` E ${p.tier}, dar la ${p.age} ani nu-l punem la Lux.`;
+      if(p.upgAge>0&&p.upgIdx<=C.upgIdx&&p.rare<=C.upgMaxRare)x=`Diferența (${d}) e sub normal (${t}), dar la ${p.age} ani cerem un preț puțin mai bun pentru Upgrade: diferența ar trebui să fie cel mult ${Math.round(C.upgIdx-p.upgAge)}% din normal, acum e ${Math.round(p.upgIdx)}%.`;
       else if(p.upgIdx<=C.upgIdx&&p.rare>C.upgMaxRare)x=`Rare ieftin față de Limited (${d} peste, față de ${t} de obicei), dar trece de plafonul de €${C.upgMaxRare} pentru Upgrade.`;
       return x;}
   }
@@ -1626,9 +1629,10 @@ function vRare(root){
         <ol style="margin:0;padding-left:18px;font-size:12.5px;line-height:1.6;color:#374151">
           <li><b>Diferența</b> = Rare − Limited, în euro. Banii reali pe care îi dai în plus.</li>
           <li><b>Normal</b> = cât costă de obicei Rare peste Limited la cele mai apropiate ${C.upgPeers||150} carduri ca preț Limited.</li>
-          <li><b>Jucătorul trebuie să merite:</b> ${(C.upgTiers||[]).join(', ')}, titular, fără cădere de formă, cel mult ${C.upgAgeMax} ani.</li>
+          <li><b>Jucătorul trebuie să merite:</b> ${(C.upgTiers||[]).join(', ')}, titular, fără cădere de formă.</li>
+          <li><b>Vârsta</b> e doar un mic handicap la preț: de la ${C.upgAgeFrom+1} ani, pragul de Upgrade și Lux scade cu ${C.upgAgeStep} procente pe an. Prețul decide.</li>
           <li>${tag('Upgrade')} diferența e cel mult ${C.upgIdx}% din normal, economisești minim €${C.upgSave}, Rare până în €${C.upgMaxRare}.</li>
-          <li>${tag('Lux')} ${(C.luxTiers||[]).join(' sau ')}, cel mult ${C.luxAgeMax} ani, diferența până la ${C.luxIdx}% din normal, Rare între €${C.luxMinRare} și €${C.luxMaxRare}.</li>
+          <li>${tag('Lux')} ${(C.luxTiers||[]).join(' sau ')}, diferența până la ${C.luxIdx}% din normal, Rare între €${C.luxMinRare} și €${C.luxMaxRare}.</li>
           <li><b>Rămâi pe Limited</b> când diferența trece de ${C.limIdx}% din normal sau Rare-ul e Overpriced față de colegi.</li>
         </ol></div>
     </div>
@@ -2196,11 +2200,11 @@ window.RQ_render=render;
     ["upgIdx","Upgrade: diferența cel mult (% din normal)","%",""],
     ["upgSave","Upgrade: economie minimă (€)","nr",""],
     ["upgMaxRare","Upgrade: Rare maxim (€)","nr",""],
-    ["upgAgeMax","Vârstă maximă pentru orice upgrade","nr",""],
+    ["upgAgeFrom","Handicap de vârstă: peste câți ani","nr",""],
+    ["upgAgeStep","Handicap de vârstă: procente pe an","nr","Cu cât scade pragul de Upgrade și Lux pentru fiecare an peste."],
     ["luxIdx","Lux: diferența cel mult (% din normal)","%",""],
     ["luxMinRare","Lux: Rare minim (€)","nr",""],
     ["luxMaxRare","Lux: Rare maxim (€)","nr",""],
-    ["luxAgeMax","Lux: vârstă maximă","nr",""],
     ["limIdx","Rămâi pe Limited peste (% din normal)","%",""],
   ];
   function renderPrice(){
@@ -2300,12 +2304,12 @@ window.RQ_render=render;
       [`Undervalued: preț Rare ≤ ${P.underMax} × prețul corect Rare`,`Overpriced: preț Rare ≥ ${P.overMin} × prețul corect Rare`,`Form sau Name după Form Trend`,`gol: fără preț, fără destui colegi sau Dropping`],
       live("Rare Signal","Undervalued",T("Undervalued"," · Tier Strong+"),dRar,strong), out?`${n("Rare Signal","Undervalued")} Undervalued · ${n("Rare Signal","Overpriced (Name)")} Overpriced (Name)`:null);
     h += card("p-upg","Rare Upgrade","Limited + Rare cu preț","Dacă dau bani în plus pe Rare, merită pentru jucătorul ăsta?",
-      `<p>Două întrebări. <b>Merită jucătorul?</b> ${P.upgTiers.join(", ")}, titular acum, fără cădere de formă, cel mult ${P.upgAgeMax} ani. Un Rare costă mult, așa că vârsta contează: unul tânăr își ține valoarea și la anul.</p>
+      `<p>Două întrebări. <b>Merită jucătorul?</b> ${P.upgTiers.join(", ")}, titular acum, fără cădere de formă. Vârsta nu exclude pe nimeni: de la ${P.upgAgeFrom+1} ani cerem doar un preț puțin mai bun (pragul scade cu ${P.upgAgeStep} procente pe an). Prețul decide.</p>
        <p><b>E corect prețul diferenței?</b> Diferența = Rare − Limited, în euro. O comparăm cu diferența normală la cele mai apropiate ${P.upgPeers} carduri ca preț Limited, nu cu un raport: la cardurile ieftine raportul iese mare fără să însemne bani.</p>
        <p>${sig("Upgrade")} Rare-ul costă puțin peste Limited față de normal. Economie reală, jucător solid.</p>
        <p>${sig("Lux")} Jucător de top, diferență mare, dar corectă. Pentru cine are buget și vrea un card de ținut.</p>
        <p>În tab-ul Rare Upgrade vezi și verdictele negative, cu motivul: <b>Rămâi pe Limited</b> (Rare umflat) și <b>Nu merită</b> (jucătorul nu justifică). În coloana din Jucători apar doar Upgrade și Lux.</p>`,
-      [`Upgrade: diferența ≤ ${P.upgIdx}% din normal, economie ≥ ${P.upgSave} €, Rare ≤ ${P.upgMaxRare} €`,`Lux: Tier ${(P.luxTiers||[]).join(" sau ")}, ≤ ${P.luxAgeMax} ani, diferența ≤ ${P.luxIdx}% din normal, Rare ${P.luxMinRare}–${P.luxMaxRare} €`,`Rămâi pe Limited: diferența peste ${P.limIdx}% din normal sau Rare Overpriced`,`Jucătorul: ${P.upgTiers.join(", ")}, titular, fără Dropping, ≤ ${P.upgAgeMax} ani`],
+      [`Upgrade: diferența ≤ ${P.upgIdx}% din normal, economie ≥ ${P.upgSave} €, Rare ≤ ${P.upgMaxRare} €`,`Lux: Tier ${(P.luxTiers||[]).join(" sau ")}, diferența ≤ ${P.luxIdx}% din normal, Rare ${P.luxMinRare}–${P.luxMaxRare} €`,`Rămâi pe Limited: diferența peste ${P.limIdx}% din normal sau Rare Overpriced`,`Jucătorul: ${P.upgTiers.join(", ")}, titular, fără Dropping`,`Vârsta: de la ${P.upgAgeFrom+1} ani, pragul de Upgrade și Lux scade cu ${P.upgAgeStep} procente pe an`],
       live("Rare Upgrade","Upgrade",T("Upgrade"),dUpg) + live("Rare Upgrade","Lux",T("Lux"),dUpg), out?`${n("Rare Upgrade","Upgrade")} Upgrade · ${n("Rare Upgrade","Lux")} Lux`:null);
     h += `<div class="g-gloss"><div class="g-h">Unde le găsești în aplicație</div><dl>
       <dt>Cumpăr Limited</dt><dd>Tab-ul Ținte: Undervalued și Fair, Tier Strong+, fără Dropping, pe bugete. Sau Jucători cu Limited Signal = Undervalued.</dd>
